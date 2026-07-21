@@ -5,8 +5,8 @@
 # ============================================================
 
 meta:
-  version: 3
-  updated: 2026-07-09
+  version: 5
+  updated: 2026-07-21
   note: 开源后可按需增删；带 official=true 的为一手源，优先级最高。新增 research-radar 配置后，研究员长文、官方研究页、国产模型技术报告必须先扫。
 
 dimensions:
@@ -16,33 +16,50 @@ dimensions:
     cn_name: AI 大厂一手信息
     check_freq: daily
     sources:
-      - { name: OpenAI Blog,            url: https://openai.com/blog,                official: true }
-      - { name: OpenAI Research,        url: https://openai.com/research,            official: true, note: 研究索引，不能只看 blog 首页 }
-      - { name: OpenAI Alignment,       url: https://alignment.openai.com,           official: true, note: alignment/安全研究常在这里首发 }
-      - { name: Anthropic News,         url: https://www.anthropic.com/news,         official: true }
-      - { name: Anthropic Research,     url: https://www.anthropic.com/research,     official: true, note: interpretability/alignment/science 研究入口 }
-      - { name: Google DeepMind Blog,   url: https://deepmind.google/discover/blog,  official: true }
-      - { name: Google DeepMind Research, url: https://deepmind.google/research,      official: true }
-      - { name: Google AI Blog,         url: https://blog.google/technology/ai,      official: true }
-      - { name: NVIDIA Newsroom,        url: https://nvidianews.nvidia.com,          official: true }
-      - { name: Meta AI Blog,           url: https://ai.meta.com/blog,               official: true }
-      - { name: xAI News,               url: https://x.ai/news,                      official: true }
-      - { name: Mistral News,           url: https://mistral.ai/news,                official: true }
-      - { name: Microsoft AI Blog,      url: https://blogs.microsoft.com/ai,         official: true }
-      - { name: Manus Blog,             url: https://manus.im/blog,                  official: true }
-      - { name: DeepSeek,               url: https://api-docs.deepseek.com/news,     official: true }
-      - { name: DeepSeek HuggingFace,   url: https://huggingface.co/deepseek-ai,     official: true, note: 模型卡/技术报告/权重更新 }
-      - { name: DeepSeek GitHub,        url: https://github.com/deepseek-ai,         official: true, note: repo release 与论文实现 }
-      - { name: Moonshot / Kimi,        url: https://moonshotai.github.io,           official: true, note: Kimi 项目页与技术报告集合 }
-      - { name: Kimi HuggingFace,       url: https://huggingface.co/moonshotai,      official: true, note: Kimi 模型卡、更新日期、下载热度 }
-      - { name: Z.ai Blog,              url: https://z.ai/blog,                      official: true, note: 智谱/GLM 官方长文 }
-      - { name: Z.ai GitHub,            url: https://github.com/zai-org/GLM-5,       official: true, note: GLM 技术报告与 release }
-      - { name: 通义千问 Qwen Blog,      url: https://qwenlm.github.io/blog,          official: true }
-      - { name: Qwen HuggingFace,       url: https://huggingface.co/Qwen,            official: true }
+      - { name: OpenAI Blog,            url: "https://openai.com/blog",                official: true }
+      - { name: OpenAI Research,        url: "https://openai.com/research",            official: true, note: 研究索引，不能只看 blog 首页 }
+      - { name: OpenAI Alignment,       url: "https://alignment.openai.com",           official: true, note: alignment/安全研究常在这里首发 }
+      - { name: Anthropic News,         url: "https://www.anthropic.com/news",         official: true }
+      - { name: Anthropic Research,     url: "https://www.anthropic.com/research",     official: true, note: interpretability/alignment/science 研究入口 }
+      - { name: Google DeepMind Blog,   url: "https://deepmind.google/discover/blog",  official: true }
+      - { name: Google DeepMind Research, url: "https://deepmind.google/research",      official: true }
+      - { name: Google AI Blog,         url: "https://blog.google/technology/ai",      official: true }
+      - { name: NVIDIA Newsroom,        url: "https://nvidianews.nvidia.com",          official: true }
+      - { name: Meta AI Blog,           url: "https://ai.meta.com/blog",               official: true }
+      - { name: xAI News,               url: "https://x.ai/news",                      official: true }
+      - { name: Mistral News,           url: "https://mistral.ai/news",                official: true }
+      - { name: Microsoft AI Blog,      url: "https://blogs.microsoft.com/ai",         official: true }
+      - { name: Manus Blog,             url: "https://manus.im/blog",                  official: true }
+      - { name: DeepSeek,               url: "https://api-docs.deepseek.com/news",     official: true }
+      - { name: DeepSeek HuggingFace,   url: "https://huggingface.co/deepseek-ai",     official: true, note: 模型卡/技术报告/权重更新 }
+      - { name: DeepSeek GitHub,        url: "https://github.com/deepseek-ai",         official: true, note: repo release 与论文实现 }
+      - { name: Moonshot / Kimi,        url: "https://moonshotai.github.io",           official: true, note: Kimi 项目页与技术报告集合 }
+      - { name: Kimi Research,          url: "https://www.kimi.com/blog",             official: true, note: Kimi 新模型与技术文章，按具体文章深链入选 }
+      - { name: Kimi Help Center,       url: "https://www.kimi.com/help",             official: true, note: 额度、会员、订阅与产品权益变化 }
+      - { name: Kimi HuggingFace,       url: "https://huggingface.co/moonshotai",      official: true, note: Kimi 模型卡、更新日期、下载热度 }
+      - { name: Z.ai Blog,              url: "https://z.ai/blog",                      official: true, note: 智谱/GLM 官方长文 }
+      - { name: Z.ai GitHub,            url: "https://github.com/zai-org/GLM-5",       official: true, note: GLM 技术报告与 release }
+      - { name: 通义千问 Qwen Blog,      url: "https://qwenlm.github.io/blog",          official: true }
+      - { name: Qwen HuggingFace,       url: "https://huggingface.co/Qwen",            official: true }
+      - { name: Qwen Official X,        url: "https://x.com/Alibaba_Qwen",              official: true, note: 新型号预热、preview、开放权重承诺和产品入口 }
+      - { name: Qwen Code Updates,      url: "https://qwenlm.github.io/qwen-code-docs/en/blog/updates/", official: true, note: 每周产品、Agent、渠道与开发者生态动作 }
+      - { name: Qwen Cloud Token Plan,  url: "https://docs.qwencloud.com/token-plan/overview", official: true, note: 套餐、模型上线、preview 和权益变化 }
+      - { name: ByteDance Seed Research, url: "https://seed.bytedance.com/research",    official: true, note: Seed/Doubao 模型、研究博客与 publications }
+      - { name: Tencent Hunyuan GitHub, url: "https://github.com/Tencent-Hunyuan",      official: true, note: 混元模型、权重、技术报告和 benchmark }
+      - { name: Tencent Hunyuan HuggingFace, url: "https://huggingface.co/tencent",     official: true, note: 模型卡与权重更新 }
+      - { name: Baidu ERNIE Blog,       url: "https://ernie.baidu.com/blog",            official: true, note: 文心模型发布、产品与技术文章 }
+      - { name: MiniMax Official,       url: "https://www.minimax.io",                  official: true, note: 新模型、API、产品和运营动作 }
+      - { name: MiniMax GitHub,         url: "https://github.com/minimax-ai",           official: true, note: 模型、Agent、CLI、MCP 与技术实现 }
+      - { name: StepFun Research,       url: "https://www.stepfun.com/research",        official: true, note: 阶跃模型、Agent 与技术研究 }
+      - { name: Huawei Pangu Docs,      url: "https://support.huaweicloud.com/productdesc-pangulm/", official: true, note: 盘古模型、API 和产品动作 }
+      - { name: InternLM GitHub,        url: "https://github.com/InternLM",              official: true, note: 上海 AI Lab 书生、Intern-S1、工具链与论文 }
+      - { name: Meituan LongCat GitHub, url: "https://github.com/meituan-longcat",       official: true, note: 美团 LongCat 模型、权重与技术报告 }
+      - { name: Xiaomi MiMo GitHub,     url: "https://github.com/XiaomiMiMo",            official: true, note: 小米 MiMo 模型与评测 }
+      - { name: InclusionAI GitHub,     url: "https://github.com/inclusionAI",           official: true, note: 蚂蚁开放模型、Ling/LLaDA 与推理工具链 }
       # 二手聚合（交叉验证用）
-      - { name: TechCrunch AI,          url: https://techcrunch.com/category/artificial-intelligence, official: false }
-      - { name: VentureBeat AI,         url: https://venturebeat.com/category/ai,    official: false }
-      - { name: The Verge AI,           url: https://www.theverge.com/ai-artificial-intelligence, official: false }
+      - { name: TechCrunch AI,          url: "https://techcrunch.com/category/artificial-intelligence", official: false }
+      - { name: VentureBeat AI,         url: "https://venturebeat.com/category/ai",    official: false }
+      - { name: The Verge AI,           url: "https://www.theverge.com/ai-artificial-intelligence", official: false }
 
   # 维度二：KOL 观点与热门讨论（KOL 名单单独维护在 kol.yaml）
   kol-views:
@@ -51,49 +68,52 @@ dimensions:
     priority: X 一手优先 —— X(Twitter) 是最新信息源，先穷尽 X / 聚合 X 的渠道，再用二手补全
     sources:
       # ① X 一手 + 聚合 X 的最快渠道（最高优先）
-      - { name: AINews,                 url: https://news.smol.ai,          note: ★swyx 团队每天聚合 X/Reddit/Discord 的 AI 讨论，抓 X 最新最对口 }
-      - { name: X / Twitter,            url: https://x.com,                 note: 直接抓取受限 → 配合 site:x.com 搜索 + nitter 镜像 + threadreaderapp }
-      - { name: X Articles,             url: https://x.com/search?q=filter%3Aarticles%20AI, note: 研究员长文/Article 优先；尤其 Anthropic/OpenAI/Claude Code 研究员 }
-      - { name: TLDR AI,                url: https://tldr.tech/ai,          note: 每日 AI 要闻，含 X 热帖 }
-      - { name: alphaSignal,            url: https://alphasignal.ai,        note: 工程师向每日 AI，X 热度驱动 }
-      - { name: Gate-News search_x (MCP), url: mcp://Gate-News/news_feed_search_x, note: 加密+AI 的 X 舆情 }
+      - { name: AINews,                 url: "https://news.smol.ai",          note: ★swyx 团队每天聚合 X/Reddit/Discord 的 AI 讨论，抓 X 最新最对口 }
+      - { name: X / Twitter,            url: "https://x.com",                 note: "直接抓取受限 → 配合 site:x.com 搜索 + nitter 镜像 + threadreaderapp" }
+      - { name: X Articles,             url: "https://x.com/search?q=filter%3Aarticles%20AI", note: 研究员长文/Article 优先；尤其 Anthropic/OpenAI/Claude Code 研究员 }
+      - { name: TLDR AI,                url: "https://tldr.tech/ai",          note: 每日 AI 要闻，含 X 热帖 }
+      - { name: alphaSignal,            url: "https://alphasignal.ai",        note: 工程师向每日 AI，X 热度驱动 }
+      - { name: Gate CLI search-x, url: "cli://gate-cli/news/feed/search-x", note: 候选发现；结果先过 validate_x_candidates.py，再用浏览器核验具体帖子 }
+      - { name: Public X index search,  url: "search://site:x.com", note: Gate 无逐帖引用时的强制降级；只接受带作者、日期、正文摘录的具体 status/article }
+      - { name: OpenAI Help / Status,   url: "https://help.openai.com", note: Codex/ChatGPT 额度、credits、套餐和 reset 规则的一手背景 }
+      - { name: Anthropic Help / Status, url: "https://support.anthropic.com", note: Claude 额度、订阅与可用性的一手背景 }
       # ② 个人博客 / newsletter（一线作者一手）
-      - { name: Simon Willison 博客,     url: https://simonwillison.net,     note: 几乎每日更新，agent 安全/模型实测第一现场 }
-      - { name: Latent Space,           url: https://www.latent.space,      note: swyx，AI Engineering 播客+日报 }
-      - { name: Interconnects,          url: https://www.interconnects.ai,  note: Nathan Lambert，post-training/开源 }
-      - { name: The Batch (DeepLearning.AI), url: https://www.deeplearning.ai/the-batch, note: Andrew Ng 周报 }
+      - { name: Simon Willison 博客,     url: "https://simonwillison.net",     note: 几乎每日更新，agent 安全/模型实测第一现场 }
+      - { name: Latent Space,           url: "https://www.latent.space",      note: swyx，AI Engineering 播客+日报 }
+      - { name: Interconnects,          url: "https://www.interconnects.ai",  note: Nathan Lambert，post-training/开源 }
+      - { name: The Batch (DeepLearning.AI), url: "https://www.deeplearning.ai/the-batch", note: Andrew Ng 周报 }
       # ③ 技术社区
-      - { name: Hacker News,            url: https://news.ycombinator.com,  note: 技术圈讨论风向 + Show HN }
+      - { name: Hacker News,            url: "https://news.ycombinator.com",  note: 技术圈讨论风向 + Show HN }
 
   # 维度三：前沿论文
   papers:
     cn_name: 前沿论文
     check_freq: daily
     sources:
-      - { name: Hugging Face Papers,    url: https://huggingface.co/papers,  note: 按社区点赞排序，过滤利器 }
-      - { name: arXiv cs.AI,            url: https://arxiv.org/list/cs.AI/recent }
-      - { name: arXiv cs.CL,            url: https://arxiv.org/list/cs.CL/recent }
-      - { name: arXiv cs.LG,            url: https://arxiv.org/list/cs.LG/recent }
-      - { name: alphaXiv,               url: https://www.alphaxiv.org,       note: 论文讨论热度 }
-      - { name: Papers with Code,       url: https://paperswithcode.com,     note: 带代码与 SOTA 榜 }
-      - { name: OpenAI Alignment,       url: https://alignment.openai.com,    note: 研究型长文/论文，按 paper 维度复扫 }
-      - { name: Anthropic Research,     url: https://www.anthropic.com/research, note: 研究型长文/论文，按 paper 维度复扫 }
-      - { name: Kimi / Moonshot Papers, url: https://moonshotai.github.io,    note: Kimi 技术报告、agent/RL 项目页 }
-      - { name: Z.ai / GLM Papers,      url: https://github.com/zai-org/GLM-5, note: GLM 技术报告、HF/Paper 链接 }
+      - { name: Hugging Face Papers,    url: "https://huggingface.co/papers",  note: 按社区点赞排序，过滤利器 }
+      - { name: arXiv cs.AI,            url: "https://arxiv.org/list/cs.AI/recent" }
+      - { name: arXiv cs.CL,            url: "https://arxiv.org/list/cs.CL/recent" }
+      - { name: arXiv cs.LG,            url: "https://arxiv.org/list/cs.LG/recent" }
+      - { name: alphaXiv,               url: "https://www.alphaxiv.org",       note: 论文讨论热度 }
+      - { name: Papers with Code,       url: "https://paperswithcode.com",     note: 带代码与 SOTA 榜 }
+      - { name: OpenAI Alignment,       url: "https://alignment.openai.com",    note: 研究型长文/论文，按 paper 维度复扫 }
+      - { name: Anthropic Research,     url: "https://www.anthropic.com/research", note: 研究型长文/论文，按 paper 维度复扫 }
+      - { name: Kimi / Moonshot Papers, url: "https://moonshotai.github.io",    note: Kimi 技术报告、agent/RL 项目页 }
+      - { name: Z.ai / GLM Papers,      url: "https://github.com/zai-org/GLM-5", note: GLM 技术报告、HF/Paper 链接 }
 
   # 维度四：热门开源项目
   open-source:
     cn_name: 热门开源项目
     check_freq: daily
     sources:
-      - { name: GitHub Trending,        url: https://github.com/trending,    note: daily/weekly 切换 }
-      - { name: OSSInsight Trending,    url: https://ossinsight.io/collections/trending, note: 实时星标增速榜 }
-      - { name: Product Hunt,           url: https://www.producthunt.com,    note: 偏产品/工具 }
-      - { name: Hacker News Show HN,    url: https://news.ycombinator.com/show }
+      - { name: GitHub Trending,        url: "https://github.com/trending",    note: daily/weekly 切换 }
+      - { name: OSSInsight Trending,    url: "https://ossinsight.io/collections/trending", note: 实时星标增速榜 }
+      - { name: Product Hunt,           url: "https://www.producthunt.com",    note: 偏产品/工具 }
+      - { name: Hacker News Show HN,    url: "https://news.ycombinator.com/show" }
       - { name: X GitHub 热议,           url: "https://x.com/search?q=open%20source%20AI%20agent%20github", note: 从社媒热帖反向发现 repo }
       - { name: X 金融/量化 Agent,       url: "https://x.com/search?q=AI%20trading%20agent%20open%20source%20github", note: 金融 Agent / 量化 Agent / AI 投研开源项目 }
-      - { name: GitHub Topic AI Trading Agent, url: https://github.com/topics/ai-trading-agent, note: 金融/量化 Agent 专项补充 }
-      - { name: GitHub Topic Quantitative Finance, url: https://github.com/topics/quantitative-finance, note: 量化研究与回测项目补充 }
+      - { name: GitHub Topic AI Trading Agent, url: "https://github.com/topics/ai-trading-agent", note: 金融/量化 Agent 专项补充 }
+      - { name: GitHub Topic Quantitative Finance, url: "https://github.com/topics/quantitative-finance", note: 量化研究与回测项目补充 }
 
   # 维度五：AI × 金融/加密/股票/交易
   ai-finance:
@@ -102,11 +122,11 @@ dimensions:
     sources:
       - { name: Gate-News (MCP),        url: "mcp://Gate-News/*",            note: 加密一手新闻/事件/X/UGC }
       - { name: Gate-Info (MCP),        url: "mcp://Gate-Info/*",            note: 加密大盘情绪/链上/DeFi 指标 }
-      - { name: CoinDesk,               url: https://www.coindesk.com }
-      - { name: The Block,              url: https://www.theblock.co }
-      - { name: a16z crypto,            url: https://a16zcrypto.com/posts }
-      - { name: 财联社/上证报/新浪财经,   url: https://www.cls.cn,            note: 国内券商 AI 投研动态 }
-      - { name: J.P. Morgan / 金融机构博客, url: https://www.jpmorgan.com/payments/newsroom }
+      - { name: CoinDesk,               url: "https://www.coindesk.com" }
+      - { name: The Block,              url: "https://www.theblock.co" }
+      - { name: a16z crypto,            url: "https://a16zcrypto.com/posts" }
+      - { name: 财联社/上证报/新浪财经,   url: "https://www.cls.cn",            note: 国内券商 AI 投研动态 }
+      - { name: J.P. Morgan / 金融机构博客, url: "https://www.jpmorgan.com/payments/newsroom" }
 
   # 跨维度高优先雷达：这些信源同时影响 lab / kol / paper / oss
   research-radar:
@@ -114,3 +134,11 @@ dimensions:
     check_freq: daily
     config: config/research_radar.yaml
     note: 每日调研前必须先扫；用于补足 Anthropic/OpenAI 研究员长文、官方研究页、DeepSeek/Kimi/智谱等国产模型论文与技术报告。
+
+  community-pulse:
+    cn_name: AI 社媒热点与产品权益雷达
+    check_freq: daily
+    config: config/conversation_radar.yaml#mandatory_pulse
+    note: >
+      每日最先扫描突发热词、模型发布、额度/订阅/价格/容量变化。该雷达只负责发现，
+      最终仍需落到官方说明、具体 X 原帖或可核验深链。

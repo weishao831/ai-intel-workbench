@@ -3,7 +3,7 @@
 """
 读当天 digest 的精华，推送到 config/push.yaml 或 config/secrets.env 配置的机器人 webhook。
 当前实现 lark / 飞书 自定义机器人(interactive 卡片)。开源后可在 build_card 旁加其它机器人 builder。
-用法：python3 scripts/push_lark.py [可选:webhook 覆盖] [可选:YYYY/MM/DD] [--dry-run]
+用法：python3 scripts/push_lark.py [可选:webhook 覆盖] [可选:YYYY/MM/DD] [--dry-run] [--allow-target-override]
 依赖：仅标准库（不需要 PyYAML / requests）。
 """
 import re, json, sys, os, urllib.request
@@ -37,6 +37,8 @@ webhook  = cfg_get("webhook")
 sign_secret = cfg_get("sign_secret") or cfg_get("secret")
 bot_type = cfg_get("bot_type", "lark")
 n_hot    = int(re.sub(r"\D", "", cfg_get("hot_topics", "5")) or 5)
+target_policy = cfg_get("target_policy", "all_enabled").strip().lower()
+primary_target_key = cfg_get("primary_target_key", "DAILY_INTEL_LARK_WEBHOOK").strip()
 
 def load_env_file(path):
     if not os.path.exists(path):
@@ -58,20 +60,60 @@ load_env_file(os.path.join(ROOT, "config", "local.env"))
 args = sys.argv[1:]
 override_hook = next((a for a in args if a.startswith("http")), None)
 override_date = next((a for a in args if re.match(r"\d{4}/\d{2}/\d{2}", a)), None)
+allow_target_override = "--allow-target-override" in args
 env_hook = os.environ.get("DAILY_INTEL_LARK_WEBHOOK", "").strip()
 env_secret = os.environ.get("DAILY_INTEL_LARK_SECRET", "").strip()
+
+if override_hook and target_policy == "primary_only" and not allow_target_override:
+    print("[push] primary_only 禁止命令行替换目标；手动一次性覆盖需显式加 --allow-target-override")
+    sys.exit(1)
 
 def split_hooks(value):
     return [x.strip() for x in re.split(r"[\s,;]+", value or "") if x.strip().startswith("http")]
 
+FALSE_VALUES = {"0", "false", "no", "off", "disabled"}
+TRUE_VALUES = {"1", "true", "yes", "on", "enabled"}
+
+def flag_value(name, default=""):
+    return os.environ.get(name, default).strip().lower()
+
+def is_disabled_target(key):
+    enabled_flag = flag_value(key + "_ENABLED")
+    disabled_flag = flag_value(key + "_DISABLED")
+    if enabled_flag and enabled_flag in FALSE_VALUES:
+        return True
+    if disabled_flag and disabled_flag in TRUE_VALUES:
+        return True
+    return False
+
+def disabled_hooks():
+    return set(split_hooks(os.environ.get("DAILY_INTEL_LARK_DISABLED_WEBHOOKS", "")))
+
+def add_configured_hooks(hooks, key, value, blocked):
+    if is_disabled_target(key):
+        return
+    for hook in split_hooks(value):
+        if hook not in blocked:
+            hooks.append(hook)
+
 def configured_hooks():
     hooks = []
-    hooks.extend(split_hooks(os.environ.get("DAILY_INTEL_LARK_WEBHOOKS", "")))
-    for key, val in os.environ.items():
-        if key == "DAILY_INTEL_LARK_WEBHOOK" or re.match(r"DAILY_INTEL_LARK_WEBHOOK_\d+$", key):
-            hooks.extend(split_hooks(val))
-    if not hooks:
-        hooks.extend(split_hooks(webhook))
+    blocked = disabled_hooks()
+    if target_policy == "primary_only":
+        primary_value = os.environ.get(primary_target_key, "")
+        add_configured_hooks(hooks, primary_target_key, primary_value, blocked)
+        if not hooks and not primary_value:
+            hooks.extend(split_hooks(webhook))
+    elif target_policy == "all_enabled":
+        add_configured_hooks(hooks, "DAILY_INTEL_LARK_WEBHOOKS", os.environ.get("DAILY_INTEL_LARK_WEBHOOKS", ""), blocked)
+        for key, val in os.environ.items():
+            if key == "DAILY_INTEL_LARK_WEBHOOK" or re.match(r"DAILY_INTEL_LARK_WEBHOOK_\d+$", key):
+                add_configured_hooks(hooks, key, val, blocked)
+        if not hooks:
+            hooks.extend(split_hooks(webhook))
+    else:
+        print("[push] target_policy 只支持 primary_only 或 all_enabled")
+        sys.exit(1)
     seen, out = set(), []
     for hook in hooks:
         if hook not in seen:
@@ -186,11 +228,7 @@ if sign_secret and bot_type in ("lark", "feishu"):
 
 # ---------- 推送 ----------
 def mask_hook(hook):
-    m = re.search(r"/hook/([^/?#]+)", hook)
-    if not m:
-        return "<configured-webhook>"
-    token = m.group(1)
-    return "<lark-webhook:%s...%s>" % (token[:4], token[-4:])
+    return "<configured-lark-webhook>" if "/hook/" in hook else "<configured-webhook>"
 
 dry_run = "--dry-run" in args
 print("[push] %s 维度(KOL/开源/金融 Top3) + %d 条热点 → %d 个机器人" % (len(dim_items), min(n_hot, len(hots)), len(webhooks)))

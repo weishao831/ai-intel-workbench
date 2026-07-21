@@ -9,7 +9,7 @@ The workbench is designed for open-source distribution, so source collection mus
 Use by default.
 
 - Search the open web for source URLs.
-- Read official blogs, arXiv, GitHub, Hugging Face, project docs, reputable media, and public X status/profile pages.
+- Read official blogs, arXiv, GitHub, Hugging Face, project docs, reputable media, and public X status pages. Use public profiles only to discover concrete posts.
 - Treat X search as best-effort because it often redirects to login.
 - Cache discovered URLs and avoid repeated requests.
 
@@ -47,12 +47,30 @@ Observed behavior in Codex's in-app browser:
 
 Design implications:
 
-- Discover X URLs via web search, RSS-like third-party sources, curated KOL handles, or configured provider APIs.
-- Read the final status/profile URL as a public page whenever possible.
-- For the KOL views dimension, run X discovery before newsletter/blog fallbacks. A healthy daily digest should normally have a majority of KOL-view items backed by `x.com/.../status/...` URLs or `x_src` evidence.
-- If X discovery fails or returns only aggregate summaries, keep the aggregate as a signal but mark the limitation in `dimensions[].notes` and avoid presenting it as tweet-level evidence.
-- Keep Chrome login-state scraping optional and local.
-- Avoid any promise of "anti-ban" behavior. Use low-frequency, read-only, user-owned access and graceful fallbacks.
+- Discover X URLs via web search, RSS-like third-party sources, curated KOL handles, or configured provider APIs. For each major topic, search the exact model/product name, article title, coined term, evaluator, and counterargument; the curated KOL list is not a discovery ceiling.
+- Use Gate CLI `news feed search-x` as a candidate-discovery provider, not as self-validating evidence. Require non-empty `cited_tweets`/`items` and reject placeholder or example URLs.
+- Discard a Gate CLI result when `summary`/`content` is non-empty but `cited_tweets` and `items` are empty. A fluent synthesis without tweet-level evidence is not a usable source.
+- A discarded Gate result must trigger a public-web fallback, not end X discovery. Search the emerging topic with `site:x.com` and require a concrete status/article URL plus visible indexed author, date, and attributable post text.
+- Read the final concrete status/article URL as a public page whenever possible. Verify visible author, timestamp, post/article title or text, and a stable numeric status/article id.
+- Treat `x.com/<handle>`, `/with_replies`, `/search`, and home pages as discovery surfaces only. They are not viewpoints and must not be stored as digest items or counted toward X coverage.
+- For the KOL views dimension, run X discovery before newsletter/blog fallbacks. A healthy daily digest should normally have a majority of KOL-view items backed by concrete `x.com/.../status/<digits>` or `x.com/i/article/<digits>` evidence, plus explicit originator, independent-evaluation, and counterpoint roles for the day's major topics.
+- In scheduled runs, a public index result may count as X evidence only when it includes a concrete URL, author, date, and text excerpt. Mark it `verification_level=public_index`; never label it browser-verified.
+- If all providers return only aggregate summaries, keep the aggregate in the coverage report as a rejected candidate, not as a digest viewpoint.
+- Keep Chrome login-state access optional and local; it is for explicit interactive spot checks, not unattended collection.
+- Do not script the X website, automate X search, auto-scroll, batch-read a logged-in session, or attempt to circumvent rate limits. Use public web search, Gate CLI, or an official API for scheduled discovery.
+- Avoid any promise of "anti-ban" behavior. Use low-frequency, read-only, user-owned access and graceful fallbacks. Stop on login walls, CAPTCHA, or safety interstitials.
+
+### Browser verification checklist
+
+Before selecting an X item, verify all of the following:
+
+- The final URL resolves to a concrete numeric status or article id.
+- The visible author matches the claimed author or organization.
+- The visible timestamp is inside the stated freshness window.
+- The visible text/title supports the summary; do not infer a viewpoint from a profile bio or pinned navigation page.
+- The URL is not a placeholder such as `example`, `123456`, a search URL, or a generic profile/replies page.
+
+When an X Article opens only a login screen, keep its public status card as provenance and find an author-owned readable copy (for example an official site or Substack). Record the readable copy as supporting evidence rather than replacing the author attribution with a secondary summary.
 
 ## Research Radar Notes
 
@@ -62,14 +80,15 @@ Some of the most valuable daily AI signals are not published as normal product n
 - Official research pages outside a company blog, such as `anthropic.com/research`.
 - Alignment or safety sub-sites, such as `alignment.openai.com`.
 - Hugging Face model cards and GitHub technical-report repositories from frontier labs.
-- Project pages from Chinese labs such as Kimi/Moonshot, DeepSeek, Z.ai/GLM, and Qwen.
+- Project pages from core Chinese labs: Qwen, DeepSeek, Kimi/Moonshot, Z.ai/GLM, ByteDance Seed/Doubao, Tencent Hunyuan, Baidu ERNIE, and MiniMax, plus the configured extended rotation.
 
 Provider discipline:
 
 - Run `config/research_radar.yaml` before generic news search.
 - Treat official research pages, model cards, and GitHub technical reports as primary sources.
 - For X Articles, keep the public article/status URL in `url` or `x_src`; if only a search snippet is reachable, mark the limitation in `dimensions[].notes`.
-- For Chinese frontier labs, scan both English and Chinese terms. Many useful releases are model-card or repository updates rather than press releases.
+- For Chinese frontier labs, scan both English and Chinese terms. Run model release, product operations, and paper/research queries separately. Many useful releases are model-card, repository, product-doc, pricing, quota, or changelog updates rather than press releases.
+- Distinguish an announcement, hosted preview, API/product rollout, and released weights. Store only the stage supported by the primary source.
 - For OpenAI, scan both `openai.com/research` and `alignment.openai.com`; important alignment articles may not appear on the normal product blog.
 - For Anthropic, scan `anthropic.com/research` in addition to `anthropic.com/news`.
 

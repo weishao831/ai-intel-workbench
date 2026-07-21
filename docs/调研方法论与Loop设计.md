@@ -13,6 +13,14 @@
 2. **强过滤**：宁缺毋滥。砍掉营销稿、灌水、重复报道；只留「有信息量 + 近期 + 重要」的。
 3. **降低认知门槛**：英文→中文，专业→大白话，抽象→配案例。让非技术背景也能秒懂。
 
+在五维度之前先跑**话题雷达**：先开放扫描过去 24 小时 AI 圈热词，再宽搜最近 72 小时/7 天的讨论，找出 3–5 个正在升温的议题，再回到人物、文章和一手证据。KOL 名单是监听池，不是当天热点清单。
+
+每天还必须完成八个**热点覆盖组**：社媒突发热词、额度/订阅/价格/容量变化、国产前沿模型发布、X 具体观点、国内大厂模型、国内大厂产品运营、国内大厂论文研究、动态 KOL 观点。战略主题用于持续理解，热点覆盖组用于避免把当天突然出现的 Qwen3.8、Kimi K3、额度重置或新工程范式挡在候选池外。
+
+**国内厂商三轨规则**：Qwen、DeepSeek、Kimi、Z.ai、ByteDance Seed/豆包、Tencent Hunyuan、Baidu ERNIE、MiniMax 每日必扫；对每家分别记录 `model_release`、`product_ops`、`research`。模型预告、产品预览、API 上线、权重发布是不同阶段，不能混写。
+
+**KOL 角色规则**：固定名单只是监听池。对重点话题用专有词和标题反向找人，至少区分首发者、独立评估与反方/边界观点，避免把高热话题变成单方官宣摘要。
+
 ---
 
 ## 二、五维度调研范式
@@ -21,8 +29,8 @@
 
 | 维度 | 核心信源 | 搜索锚点 | 特别产出 |
 |---|---|---|---|
-| 🏢 AI 大厂动态 | OpenAI/Anthropic/Google/Nvidia/Manus/Meta/xAI/Mistral/MS + 国产(字节/阿里/DeepSeek) 官方 | "公司名 + announcement/release/research + 月份" | 产品发布 / 研究论文 / 战略动作三类，抽象内容配案例 |
-| 🗣️ KOL 观点 | X + Latent Space + Interconnects + The Batch + HN | "AI Twitter discussion / X trending / 议题名" | KOL 名单(可更新) + 议题分歧 + **可借鉴实践清单** |
+| 🏢 AI 大厂动态 | 海外核心实验室 + 国内 8 家核心厂商官方源 | "公司名 + model/product/pricing/research + 月份" | 模型发布 / 产品运营 / 论文研究三轨分开，抽象内容配案例 |
+| 🗣️ KOL 观点 | X + Latent Space + Interconnects + The Batch + HN | "AI Twitter discussion / X trending / 专有词 / 标题 / 反方" | 固定 KOL 池 + 话题反向发现 + 首发/评估/反方角色 |
 | 📄 前沿论文 | HuggingFace Papers + arXiv(cs.AI/CL/LG) + alphaXiv | "huggingface papers trending / 方向 + 月份" | 过滤后 6–10 篇，每篇小白版 + 创新点 + 落地启发 |
 | 🧩 开源项目 | GitHub Trending/OSSInsight + HN + Product Hunt | "github trending AI / fastest growing repo" | 做什么 + 内部逻辑 + 亮点 + 价值 + 上手难度 |
 | 💰 AI×金融 | Gate-News/Gate-Info(MCP) + CoinDesk/TheBlock + 国内财经 | "AI agent/DeFAI/AI trading/券商 AI 投研" | 覆盖 加密/泛金融/股票/交易 四子方向 + 大盘情绪 |
@@ -30,9 +38,12 @@
 **过滤标准（keywords.yaml 落地）**：
 - 必须命中至少 1 个主题标签（`topic_tags`）
 - 必须有可访问 URL
-- 默认只保留最近 14 天；窗口外要破例必须 `heat=high` 并显式标注日期
+- 每日主清单默认只保留最近 7 天，目标至少 5 条来自最近 72 小时
+- 7 天外只能作为 `background` 并写清 `why_now`；30 天外不得独立占一条
 - 命中噪音词（招聘/广告/纯榜单）直接丢弃或降权
-- 按 `url + 中文标题` 去重
+- 与当期及此前 7 期按 URL + 标题去重
+
+**X 证据纪律**：Gate CLI 只作候选发现；`cited_tweets/items` 为空时忽略其总结，并立即降级到公开网页索引寻找具体 status/article。用户主动运行可用浏览器少量核验；定时运行可采用公开索引里同时可见作者、日期和正文摘录的具体原帖。profile、with_replies、搜索页和主页不是观点证据。
 
 **可信度纪律**：单一来源、日期略超窗口、数字源自二手转述等，都要在 `notes` 里**诚实标注**，不假装确定。
 
@@ -55,7 +66,7 @@
 | 阶段 | 做什么 | 输入 | 输出 |
 |---|---|---|---|
 | ① 触发 Trigger | 每天定时启动（cron/launchd/云定时器），可手动补跑 | 日期 | 一次调研任务 |
-| ② 采集 Collect | 按 `sources.yaml` 分 5 维度并行 fan-out，抓最近 7–14 天 | config | 各维度原始候选 |
+| ② 采集 Collect | 先跑八组热点覆盖和国内厂商三轨扫描，再按 `sources.yaml` 分 5 维度 fan-out，抓最近 24 小时/72 小时/7 天 | config | 带查询、厂商、角色与候选计数的原始候选 |
 | ③ 清洗 Clean | 去重 + 噪音过滤 + 打标签 + 翻译 + 小白化 + 配案例 | 原始候选 | `raw/*.json` + `digest.js` |
 | ④ 呈现 Present | 写入日期文件夹，更新 `manifest.js`，刷新工作台 | digest | 工作台当日视图 |
 | ⑤ 反馈 Feedback | 你在工作台 ⭐ 标记感兴趣的条目 | 你的点击 | 偏好信号（哪些源/主题真有用） |
@@ -108,6 +119,10 @@
 - [ ] 时间窗口内（超窗口需 high 且标注）
 - [ ] 单源/不确定信息已标注
 - [ ] 跨维度热点的关联条目 id 真实存在
+- [ ] `coverage_report` 八个必扫查询组均有实际查询、候选数和入选/淘汰记录
+- [ ] 国内 8 家核心厂商已扫描，模型/产品运营/研究三轨都有完成记录
+- [ ] 至少 2 个话题有首发者 + 独立评估，且至少 1 个话题有反方/边界观点
+- [ ] Gate 无逐帖引用时已执行公开网页降级，而不是把 provider 失败写成“社媒无观点”
 
 ---
 

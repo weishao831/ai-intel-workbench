@@ -5,6 +5,9 @@
 enabled: false
 bot_type: lark
 webhook: ""
+# primary_only 只会自动推送 primary_target_key；其他本地机器人可保留配置但不参与日常任务。
+target_policy: primary_only
+primary_target_key: DAILY_INTEL_LARK_WEBHOOK
 hot_topics: 5             # 推送几条「今日热点」
 per_dimension: 1          # 普通维度每维度推送几条
 top3_dimensions: kol,oss,fin   # 这些维度推「每日 Top3」（KOL 观点 / 开源项目 / AI×金融）

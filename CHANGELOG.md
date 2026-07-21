@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.2.0 - 2026-07-21
+
+Full release notes: [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md)
+
+- Expanded the domestic AI lab radar to eight daily core vendors (Qwen, DeepSeek, Kimi, Z.ai, ByteDance Seed, Tencent Hunyuan, Baidu ERNIE, and MiniMax) plus six rotating vendors.
+- Split lab monitoring into required `model_release`, `product_ops`, and `research` tracks so model announcements cannot hide pricing, quota, capacity, developer-tool, or paper updates.
+- Added Qwen official X, Qwen Code updates, and Token Plan documentation; upgraded Qwen3.8 and future model-preview queries to high priority while distinguishing previews from released weights.
+- Expanded the default KOL seed list from 61 to 69 and added topic-driven discovery with originator, independent-evaluation, and counterpoint roles.
+- Added `quality_version: 4` validation with eight mandatory coverage groups, eight-lab completion records, three lab activity tracks, and dynamic viewpoint quotas.
+- Rebuilt the 2026-07-21 digest with Qwen3.8, Qwen Code product updates, open-weight deployability debate, and the Graph Engineering vs Loop Engineering discussion.
+
+## 0.1.9 - 2026-07-21
+
+- Added a fail-closed `primary_only` push policy so scheduled runs send only the explicitly selected primary bot even when additional local webhooks remain configured.
+- Blocked command-line webhook replacement under `primary_only` unless a manual run explicitly passes `--allow-target-override`.
+- Removed webhook token fragments from push logs; dry runs and delivery logs now show only an opaque configured-target label.
+
+## 0.1.8 - 2026-07-21
+
+- Added mandatory community-pulse coverage for emerging AI topics, quota/subscription/pricing/capacity changes, Chinese frontier-model launches, and concrete X viewpoints.
+- Added a public-web X fallback when Gate CLI returns summaries without cited posts; scheduled runs can use a concrete indexed post only with author, date, attributable excerpt, and explicit `public_index` evidence metadata.
+- Added `quality_version: 3` and `coverage_report` validation so every mandatory query group records actual searches, candidate counts, selections or rejection reasons, plus Gate/public-index/browser pipeline counts.
+- Added `--publish-on-valid` so failed digests remain available for debugging but do not advance the dashboard manifest or trigger pushes.
+- Expanded Kimi/Moonshot, OpenAI Help/Status, and product-entitlement sources and keywords, including Kimi K3 and Codex quota/reset discussions.
+
+## 0.1.7 - 2026-07-20
+
+- Restricted browser-based X access to explicit interactive spot checks; scheduled or unattended runs must use public web search, Gate CLI, or an official API and must not script a logged-in X session.
+- Added runtime flags and provider documentation for stopping on login walls, CAPTCHA, or safety interstitials.
+- Tightened Gate CLI candidate validation so short or sequential placeholder numeric IDs are rejected.
+
+## 0.1.6 - 2026-07-20
+
+- Added `config/conversation_radar.yaml` so each run discovers recent cross-source debates before filling the five dashboard dimensions; default strategic lenses include enterprise AI adoption / organizational change and frontier AI / AGI governance.
+- Changed X collection from profile-level monitoring to concrete-post evidence: profiles, `with_replies`, search pages, and home pages no longer count as KOL viewpoints.
+- Added `scripts/validate_x_candidates.py` to reject Gate CLI `search-x` summaries when tweet/article citations are empty, malformed, placeholders, or not concrete numeric X URLs.
+- Upgraded `validate_digest.py` with `quality_version: 2` gates for 72-hour/7-day freshness, old-background limits, generic source-index rejection, concrete X post ratios, browser-verification metadata, topic clusters, and seven-day cross-run deduplication.
+- Expanded the default KOL seed list from 59 to 61 with enterprise AI / organizational-workflow voices, and added Demis Hassabis to the frontier longform radar.
+- Updated the daily research prompt and provider documentation so Gate CLI is candidate discovery, browser verification is the final X evidence step, and low-quality dimensions fail visibly instead of being filled with monitoring placeholders.
+
+## 0.1.5 - 2026-07-20
+
+- Upgraded the dashboard archive view to render newest days first.
+- Added archive-level filters for dimension, heat, and keyword search.
+- Added archive pagination and page-size controls to keep long history lists usable.
+
+## 0.1.4 - 2026-07-15
+
+- Added per-bot Lark/Feishu enable switches such as `DAILY_INTEL_LARK_WEBHOOK_2_ENABLED=false`, so a local webhook can stay configured while being skipped by daily scheduled pushes.
+
 ## 0.1.3 - 2026-07-09
 
 - Added `config/research_radar.yaml` as a mandatory discovery layer before generic daily search. It tracks researcher X Articles / longform, Anthropic Research, OpenAI Research / Alignment, DeepSeek, Kimi/Moonshot, Z.ai/GLM, Qwen, and finance/quant agent repositories.

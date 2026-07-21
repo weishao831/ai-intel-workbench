@@ -4,7 +4,7 @@
 
 AI Intel Workbench is a **local-first, open-source daily intelligence workflow for agents**. It helps Codex, Claude Code, or any skill-capable agent collect and structure daily AI + user-defined industry signals, then review them in a visual local dashboard.
 
-Use it to track AI lab updates, X-first KOL opinions, frontier papers, open-source projects, and AI x finance / crypto / any configured industry. It includes configurable sources, a 59-person default KOL seed list, a research radar for researcher longform and lab papers, industry anchors, structured digests, output-language selection, a zero-dependency HTML workbench, optional Lark/Feishu bot pushes, and local scheduled runs.
+Use it to track AI lab updates, X-first KOL opinions, frontier papers, open-source projects, and AI x finance / crypto / any configured industry. It includes configurable sources, a 69-person default KOL seed list, a conversation radar for emerging debates, a research radar for researcher longform and lab papers, industry anchors, structured digests, output-language selection, a zero-dependency HTML workbench, optional Lark/Feishu bot pushes, and local scheduled runs.
 
 ![English dashboard](assets/screenshots/dashboard-en.png)
 
@@ -16,7 +16,10 @@ Use it to track AI lab updates, X-first KOL opinions, frontier papers, open-sour
 - Supports Chinese, English, or bilingual output.
 - Works as a Codex local plugin, a Claude Code repository workflow, or plain local Python scripts.
 - Supports optional Lark/Feishu push bots and local scheduling through macOS LaunchAgent or Linux cron.
-- Uses X-first KOL tracking by default; Gate-News `news_feed_search_x` is the recommended optional dependency for X/Twitter discussion aggregation when available.
+- Runs `config/conversation_radar.yaml` before fixed dimensions to discover recent debates such as enterprise AI adoption and frontier AI / AGI governance.
+- Runs eight mandatory coverage groups, including separate domestic-lab model, product-operations, and research tracks plus dynamic viewpoint discovery.
+- Uses X-first KOL tracking by default. Gate CLI `news feed search-x` is candidate discovery only; failed Gate results fall back to public indexed concrete posts, while interactive runs may browser-verify a small final set.
+- Records a `coverage_report` so an empty provider result cannot be mistaken for “there were no viewpoints,” requires originator/evaluator/counterpoint coverage for major topics, and publishes the manifest only after validation succeeds.
 - Runs `config/research_radar.yaml` before generic search to catch researcher X Articles, Anthropic/OpenAI research posts, Chinese frontier-lab model cards, and finance/quant agent repositories.
 
 No personal webhook, cookie, token, API key, or X/Twitter session state is committed by default.
@@ -83,7 +86,8 @@ Daily AI research is often published outside ordinary company blogs: researcher 
 
 - `researcher_longform_watchlist`: researcher X Articles and longform posts.
 - `lab_research_watchlist`: Anthropic Research, OpenAI Research, OpenAI Alignment, Google DeepMind Research.
-- `chinese_frontier_lab_watchlist`: DeepSeek, Kimi/Moonshot, Z.ai/GLM, Qwen.
+- `chinese_frontier_lab_watchlist`: daily checks for Qwen, DeepSeek, Kimi/Moonshot, Z.ai/GLM, ByteDance Seed/Doubao, Tencent Hunyuan, Baidu ERNIE, and MiniMax, plus an extended rotating pool.
+- `domestic_lab_scan_policy`: scans model releases, product operations, and papers/research as separate activity tracks.
 - `open_source_finance_quant_watchlist`: finance agents, quant agents, AI stock-research agents, backtesting and broker/exchange integrations.
 
 For important longform or research items, agents should set `content_type`, `depth: deep`, `key_points`, `examples`, `product_implications`, and `limitations`. The dashboard is designed to show enough structure that users can understand most of the original article without opening it.

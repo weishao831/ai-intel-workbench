@@ -1,15 +1,15 @@
 # ============================================================
-# KOL 名单 kol.yaml —— 2026-07-09 第四轮：扩到 59 人，新增研究员长文/国产模型官方监听
+# KOL 名单 kol.yaml —— 2026-07-21 第六轮：扩到 69 人，补国产模型、独立评测与热点反向发现
 # status: keep(保留) / new(本期新增) / watch(待核实或观察) / drop(建议剔除)
 # platform: X / 微博 / 即刻
 # ============================================================
 meta:
-  version: 4
-  updated: 2026-07-09
-  count: 59
+  version: 6
+  updated: 2026-07-21
+  count: 69
   default_seed: true
-  source_priority: "X(一手) > 个人博客/newsletter > 聚合(AINews) > 二手媒体；X 抓取用 Chrome 扩展 + site:x.com"
-  update_rule: "每周体检；新热点出现就从 X 反向发现新声音；研究员长文/X Article 进入高优先级巡检"
+  source_priority: "话题反向发现 + X(一手) > 固定 KOL 池 > 个人博客/newsletter > 聚合(AINews) > 二手媒体"
+  update_rule: "每周体检；每个重点话题必须反向寻找首发者、独立实测和反方；连续高质量命中的新作者再加入默认池"
 
 前沿研究者:
   - { handle: "@karpathy",       name: "Andrej Karpathy",  field: "LLM 教育/agent 思辨", platform: X, status: keep }
@@ -47,6 +47,7 @@ AI工程与Agent:
   - { handle: "@Zai_org",        name: "Z.ai (智谱)",      field: "GLM 开源模型",        platform: X, status: new }
   - { handle: "@jietang",        name: "唐杰",             field: "Z.ai/智谱 创始人与 GLM", platform: X, status: new }
   - { handle: "@Kimi_Moonshot",  name: "Kimi.ai",          field: "Moonshot/Kimi 官方模型更新", platform: X, status: new }
+  - { handle: "@Alibaba_Qwen",   name: "Qwen",             field: "通义千问官方模型/产品动作", platform: X, status: new }
 
 评测与安全:
   - { handle: "@METR_Evals",     name: "METR",             field: "危险能力评测",        platform: X, status: new }
@@ -65,10 +66,15 @@ AI工程与Agent:
   - { handle: "@mreflow",        name: "Matt Wolfe",       field: "AI 工具科普",        platform: X, status: new }
   - { handle: "@sharbel",        name: "Sharbel",          field: "GitHub 增速榜/开源情报", platform: X, status: new }
   - { handle: "@seelffff",       name: "self.dll",         field: "开源 repo 速递",     platform: X, status: new }
+  - { handle: "@UnslothAI",      name: "Unsloth AI",       field: "开源模型部署/实测", platform: X, status: new }
+  - { handle: "@arena",          name: "Arena.ai",         field: "模型与 Agent 独立评测", platform: X, status: new }
+  - { handle: "@ArtificialAnlys",name: "Artificial Analysis",field: "模型性能/成本独立评测", platform: X, status: new }
 
 应用与投资创业:
   - { handle: "@emollick",       name: "Ethan Mollick",    field: "AI 与职场(Wharton)", platform: X, status: keep }
   - { handle: "@AndrewYNg",      name: "Andrew Ng",        field: "AI 教育/趋势",       platform: X, status: keep }
+  - { handle: "@levie",          name: "Aaron Levie",      field: "企业 AI/组织工作流(Box)", platform: X, status: new }
+  - { handle: "@satyanadella",   name: "Satya Nadella",    field: "企业 AI/组织与平台(Microsoft)", platform: X, status: new }
   - { handle: "@bindureddy",     name: "Bindu Reddy",      field: "企业 AI agent(Abacus)", platform: X, status: new }
   - { handle: "@a16z",           name: "a16z",             field: "AI 投资",            platform: X, status: new }
   - { handle: "@martin_casado",  name: "Martin Casado",    field: "AI 投资/政策(a16z)", platform: X, status: new }
@@ -77,6 +83,8 @@ AI编码与loop圈:
   - { handle: "@0xCodez",        name: "Codez",            field: "loop engineering 解读", platform: X, status: new }
   - { handle: "@sairahul1",      name: "Rahul",            field: "loop/agent 工程",    platform: X, status: new }
   - { handle: "@AravSrinivas",   name: "Aravind Srinivas", field: "Perplexity CEO",     platform: X, status: keep }
+  - { handle: "@HamelHusain",    name: "Hamel Husain",     field: "Evals/Agent 工程/业界方法论", platform: X, status: new }
+  - { handle: "@svpino",         name: "Santiago Valdarrama", field: "ML/Agent 工程趋势观点", platform: X, status: watch }
 
 AIxCrypto与DeFAI:
   - { handle: "@shawmakesmagic", name: "Shaw Walters",     field: "Eliza 框架",         platform: X, status: keep }
@@ -88,6 +96,8 @@ AIxCrypto与DeFAI:
   - { handle: "@op7418",            name: "歸藏 (guizang.ai)", field: "AI 视觉/资讯(AIGC Weekly)", platform: X,  status: new }
   - { handle: "@dotey",             name: "宝玉 (Baoyu)",   field: "AI 工程/翻译",        platform: X,  status: new }
   - { handle: "@_zheergen",         name: "爱吃折耳根的Ace",  field: "AI+股票投研(UZI-Skill)", platform: X,  status: new }
+  - { handle: "@xiaohu",            name: "Xiaohu",          field: "国产模型/技术差距评估", platform: X, status: new }
+  - { handle: "@wangyinrec",        name: "Wangyin",         field: "AI 产品规则/用户体验长文", platform: X, status: watch }
   - { handle: "微博·歸藏的AI工具箱",  name: "歸藏",           field: "AI 工具",            platform: 微博, status: new }
   - { handle: "微博·宝玉xp",         name: "宝玉",           field: "AI 工程",            platform: 微博, status: new }
   - { handle: "即刻·orange.ai",      name: "Orange",         field: "AI 创业/内容",       platform: 即刻, status: watch }
