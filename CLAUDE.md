@@ -23,4 +23,4 @@ Do not store browser cookies, X/Twitter session tokens, API keys, or webhook URL
 
 Honor `config/runtime.yaml` `output_language` when generating user-facing digest fields. Supported values are `zh`, `en`, and `bilingual`.
 
-For the KOL views dimension, use X-first sourcing: start from `config/kol.yaml`, search public X status/profile URLs, and use Gate-News MCP `news_feed_search_x` when available before falling back to newsletters or blogs. Preserve X URLs in `items[].url` or `items[].x_src`.
+For the KOL views dimension, use X-first sourcing: start from `config/kol.yaml` plus emerging topics in `config/conversation_radar.yaml`, use public search and Gate CLI `news feed search-x` for candidate discovery, run `scripts/validate_x_candidates.py`, then open each selected concrete X status/article in a browser. Profiles and `with_replies` pages are navigation only and never count as viewpoints. Preserve verified X URLs in `items[].url` or `items[].x_src`.

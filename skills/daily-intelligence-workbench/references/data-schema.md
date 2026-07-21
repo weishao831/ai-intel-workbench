@@ -20,9 +20,58 @@ The deterministic writer also accepts canonical JSON:
   "date": "2026-06-29",
   "date_cn": "2026年6月29日 · 周一",
   "generated_at": "2026-06-29",
+  "quality_version": 4,
   "language": "zh",
   "refresh_note": "Short generation note",
   "market_mood": "Optional market/context paragraph",
+  "coverage_report": {
+    "query_groups": [
+      {
+        "key": "community_hotspots",
+        "status": "completed",
+        "queries": ["Actual query issued"],
+        "candidate_count": 5,
+        "selected_ids": ["lab-1"],
+        "rejection_reasons": []
+      }
+    ],
+    "x_pipeline": {
+      "gate_queries": 2,
+      "gate_cited_posts": 0,
+      "public_index_queries": 2,
+      "public_index_posts": 5,
+      "browser_queries": 0,
+      "browser_verified_posts": 0
+    },
+    "lab_pipeline": {
+      "core_labs_checked": ["qwen", "deepseek", "kimi", "zai", "bytedance_seed", "tencent_hunyuan", "baidu_ernie", "minimax"],
+      "activity_tracks": [
+        {
+          "key": "model_release",
+          "status": "completed",
+          "queries": ["Actual model-release query"],
+          "candidate_count": 2,
+          "selected_ids": ["lab-1"],
+          "rejection_reasons": []
+        }
+      ]
+    },
+    "viewpoint_pipeline": {
+      "dynamic_candidates": 6,
+      "dynamic_selected_ids": ["kol-1", "kol-2"],
+      "static_selected_ids": [],
+      "topic_roles": [
+        {
+          "topic_cluster": "example-topic",
+          "roles": {
+            "originator": ["lab-1"],
+            "independent_evaluation": ["kol-1"],
+            "counterpoint": ["kol-2"]
+          }
+        }
+      ]
+    }
+  },
   "dimensions": [
     {
       "key": "lab",
@@ -44,6 +93,7 @@ The deterministic writer also accepts canonical JSON:
     {
       "id": "lab-1",
       "dim": "lab",
+      "lab_activity_type": "model_release | product_ops | research",
       "title": "Chinese title",
       "orig": "Original title",
       "source": "Source name",
@@ -55,8 +105,21 @@ The deterministic writer also accepts canonical JSON:
       "detail": "Detailed explanation",
       "why": "Why it matters",
       "why_now": "Why now",
+      "topic_cluster": "organization-ai",
+      "recency_role": "fresh_signal | current | background",
       "buzz": "Community discussion",
       "x_src": ["https://x.com/.../status/..."],
+      "evidence": {
+        "provider": "browser | public-web-index | official-api | official-site",
+        "verification_level": "direct_page | public_index | official_api",
+        "excerpt": "Attributable source text used for the summary",
+        "verified_url": "https://x.com/author/status/1234567890",
+        "verified_at": "2026-06-29T09:00:00+08:00",
+        "published_at": "2026-06-28T12:00:00Z",
+        "direct": true
+      },
+      "repeat_update": false,
+      "new_evidence": "Required only when intentionally repeating a recent source",
       "content_type": "news | x_status | x_article | official_research | paper | technical_report | model_card | github_repo | analysis",
       "depth": "normal | deep",
       "key_points": ["Point 1", "Point 2"],
@@ -73,7 +136,7 @@ The deterministic writer also accepts canonical JSON:
 
 ## Required Fields
 
-- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`
+- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`; new production digests should set `quality_version: 4` and include `coverage_report`
 - Dimension: `key`, `cn`, `overview`
 - Hot topic: `title`, `summary`, `related`
 - Item: `id`, `dim`, `title`, `source`, `url`, `date`, `summary`, `detail`
@@ -113,13 +176,25 @@ Keep technical names, source names, product names, tickers, and URLs unchanged u
 - Every item should have a reachable or intentionally marked URL.
 - Every item should include a dimension present in `dimensions[].key`.
 - Public claims that are single-source, stale, or approximate should be disclosed in `notes`, `buzz`, or `detail`.
+- For `quality_version: 2`, KOL X evidence must be a concrete numeric `x.com/<handle>/status/<id>` or `x.com/i/article/<id>` URL. Profile, `with_replies`, home, and search URLs are discovery-only.
+- For `quality_version: 2`, set `topic_cluster` on each item and connect hot topics to at least two independent source URLs where possible.
+- For `quality_version: 2`, sources older than seven days require `recency_role: background` and a specific `why_now`; sources older than 30 days cannot be standalone daily items.
+- For `quality_version: 2`, repeated URLs from the previous seven digests require `repeat_update: true` plus a concrete `new_evidence` explanation.
+- For `quality_version: 3`, `coverage_report.query_groups` must contain completed `community_hotspots`, `access_and_quota`, `chinese_frontier_models`, and `x_viewpoints` records with actual queries and candidate counts.
+- For `quality_version: 3`, a concrete X item can be verified by an interactive browser (`direct_page`), a public web index (`public_index`), or an official API (`official_api`). Every path needs an attributable excerpt, author/date metadata, and a concrete numeric status/article URL; Gate summaries alone never qualify.
+- For `quality_version: 3`, `coverage_report.x_pipeline` records Gate, public-index, and browser query/result counts so a provider failure cannot be mistaken for “no discussion.”
+- For `quality_version: 4`, `coverage_report.query_groups` additionally requires `domestic_lab_models`, `domestic_lab_product_ops`, `domestic_lab_research`, and `dynamic_kol_views`.
+- For `quality_version: 4`, `coverage_report.lab_pipeline.core_labs_checked` must contain all eight core domestic labs, and `activity_tracks` must complete `model_release`, `product_ops`, and `research` with actual queries and candidate records.
+- For `quality_version: 4`, every lab item requires `lab_activity_type`. Every KOL item requires `discovery_mode: watchlist | topic_expansion` and `viewpoint_role: originator | independent_evaluation | counterpoint | context`.
+- For `quality_version: 4`, `coverage_report.viewpoint_pipeline` requires at least six dynamic candidates, at least two dynamic selections, at least two topics with originator + independent evaluation, and at least one counterpoint topic.
+- Do not use generic research indexes, topic pages, profile pages, or provider-monitoring messages as intelligence items.
 
 ## Writing Files
 
 Prefer:
 
 ```bash
-python3 scripts/run_daily.py --date 2026-06-29 --from-json out/digest.json
+python3 scripts/run_daily.py --date 2026-06-29 --from-json out/digest.json --publish-on-valid
 ```
 
 Then validate:

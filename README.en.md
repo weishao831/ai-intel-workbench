@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-Daily Intelligence Workbench is a **local-first, open-source deployable** workflow for daily AI industry intelligence. It combines configurable sources, X-first KOL tracking, a research radar for researcher longform and lab papers, industry anchors, agent-assisted research, structured digests, a local HTML dashboard, bot pushes, output-language selection, and local schedules.
+Daily Intelligence Workbench is a **local-first, open-source deployable** workflow for daily AI industry intelligence. It combines configurable sources, X-first KOL tracking, an emerging-conversation radar, a research radar for researcher longform and lab papers, industry anchors, agent-assisted research, structured digests, a local HTML dashboard, bot pushes, output-language selection, and local schedules.
 
 Any agent runtime that can read a skill/instruction file, run local scripts, and trigger or install scheduled tasks can use this repository to initialize a workspace, produce daily intelligence, refresh the dashboard, and optionally push summaries to a bot.
 
@@ -16,9 +16,9 @@ Supported environments:
 
 > The open-source default does not include any personal webhook, cookie, token, or account state. X/Twitter login state, API keys, and push bots are configured locally by each user.
 
-> The default KOL seed list is included in `config/kol.yaml` with 59 AI researchers, lab leads, AI engineering voices, open-source/model builders, evaluation/safety accounts, AI x crypto voices, and Chinese-language AI commentators. Treat it as the initial tracking pool and edit it for your own domain.
+> The default KOL seed list is included in `config/kol.yaml` with 69 AI researchers, lab leads, AI engineering voices, open-source/model builders, evaluation/safety accounts, AI x crypto voices, and Chinese-language AI commentators. It is a watch pool rather than a discovery ceiling: every run also expands from the day's exact topics, originators, evaluators, and counterarguments.
 
-> `config/research_radar.yaml` is now a first-class discovery layer for researcher X Articles, Anthropic/OpenAI research posts, DeepSeek/Kimi/Z.ai/Qwen model cards and technical reports, plus finance/quant agent repositories.
+> `config/conversation_radar.yaml` first runs eight mandatory coverage groups, including separate domestic-lab model, product-operations, and research tracks plus dynamic KOL discovery. `config/research_radar.yaml` then scans researcher X Articles, frontier-lab research, model cards, technical reports, and finance/quant agent repositories.
 
 ---
 
@@ -35,6 +35,7 @@ ai-intel-workbench/
 │   ├── sources.yaml
 │   ├── keywords.yaml
 │   ├── kol.yaml
+│   ├── conversation_radar.yaml
 │   ├── research_radar.yaml
 │   ├── push.yaml
 │   ├── runtime.yaml
@@ -128,7 +129,8 @@ The workflow reads `config/research_radar.yaml` before generic news search:
 
 - `researcher_longform_watchlist`: researcher X Articles and longform posts.
 - `lab_research_watchlist`: Anthropic Research, OpenAI Research, OpenAI Alignment, Google DeepMind Research.
-- `chinese_frontier_lab_watchlist`: DeepSeek, Kimi/Moonshot, Z.ai/GLM, Qwen.
+- `chinese_frontier_lab_watchlist`: daily checks for Qwen, DeepSeek, Kimi/Moonshot, Z.ai/GLM, ByteDance Seed/Doubao, Tencent Hunyuan, Baidu ERNIE, and MiniMax, plus an extended rotating pool.
+- `domestic_lab_scan_policy`: scans model releases, product operations, and papers/research as separate activity tracks.
 - `open_source_finance_quant_watchlist`: finance agents, quant agents, AI stock-research agents, backtesting and broker/exchange integrations.
 
 For important longform or research items, the digest should set `content_type`, `depth: deep`, `key_points`, `examples`, `product_implications`, and `limitations`. The dashboard renders these fields so the user can understand most of the article without opening the original source.
@@ -208,7 +210,7 @@ Placeholders:
 
 The open-source workflow does not depend on a user's Chrome login state by default.
 
-For the KOL views track, the research loop is X-first: it should search public `x.com/.../status/...` URLs and configured X providers before using newsletters or blog fallbacks. The validator reports `kol_x_sources` so low X evidence is visible.
+For the KOL views track, the research loop is X-first. Gate CLI `news feed search-x` is candidate discovery only: save its JSON and run `scripts/validate_x_candidates.py`. If it returns no cited posts, continue with public `site:x.com` indexing instead of stopping the track. Interactive runs can browser-verify a small final set; scheduled runs may use an indexed concrete post only when the author, date, and attributable excerpt are visible. Profiles, `with_replies`, home pages, and search pages are never counted as viewpoints. The digest validator reports coverage, `kol_verified_x_posts`, freshness, and seven-day repetition.
 
 Default provider:
 
@@ -221,7 +223,7 @@ Optional providers:
 
 - User-owned local Chrome or browser extension session
 - X API or third-party data APIs
-- Gate-News MCP, especially `news_feed_search_x`, for X/Twitter discussion aggregation and tweet-level evidence when available
+- Gate CLI `news feed search-x` for candidate discovery; results still require `validate_x_candidates.py` and browser verification
 - User-supplied CSV/JSON/bookmark exports
 
 Safety rules:
@@ -262,7 +264,7 @@ export DAILY_INTEL_LARK_WEBHOOK="https://open.larksuite.com/open-apis/bot/v2/hoo
 python3 scripts/run_daily.py --date today --push
 ```
 
-Multiple local bot targets are supported without committing webhooks:
+Multiple local bot targets can remain configured without committing webhooks. With `target_policy: primary_only` in `config/push.yaml`, scheduled runs send only the bot named by `primary_target_key`; numbered targets are retained but not sent automatically:
 
 ```bash
 export DAILY_INTEL_LARK_WEBHOOK_1="https://open.larksuite.com/open-apis/bot/v2/hook/xxx"

@@ -27,7 +27,7 @@ X/Twitter 采集必须使用 provider 模式：
 
 - 默认：公共网页 / 搜索发现 / 公开 status 或 profile 读取。
 - 可选：用户本地 Chrome 登录态、浏览器扩展、X API 或第三方数据源。
-- KOL 观点维度必须 X-first：优先按 `config/kol.yaml` 的 handle 查公开 X status/profile；可使用 Gate-News MCP `news_feed_search_x` 做 X/Twitter 讨论聚合；只有 X 证据不足时才 fallback 到 newsletter / blog。
+- KOL 观点维度必须 X-first：优先按 `config/kol.yaml` 与 `config/conversation_radar.yaml` 发现候选，用公开搜索和 Gate CLI `news feed search-x` 找具体帖子。Gate CLI 只作候选发现，结果先过 `scripts/validate_x_candidates.py`；只有用户明确发起的交互式运行，才由浏览器少量打开具体 X status/article 核验。定时任务不得脚本化搜索、滚动或批量读取 X 登录态；profile/with_replies 只用于导航，不是观点证据。只有 X 证据不足时才 fallback 到 newsletter / blog，并让质量校验如实报告不足。
 - 不把任何用户账号、cookie、token、webhook 写入仓库；只使用本地 `config/*.yaml` 或环境变量。
 
 ## 输出约定

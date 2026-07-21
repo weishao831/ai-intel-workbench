@@ -5,19 +5,59 @@
 # ============================================================
 
 meta:
-  version: 2
-  updated: 2026-07-09
+  version: 5
+  updated: 2026-07-21
+  date_rule: 搜索时由运行任务注入当天日期和最近 72 小时/7 天窗口，不在配置中写死月份。
 
 # 搜索时优先拼接的英文关键词（research-analyst 用英文搜，结果整理为中文）
 search_terms:
-  ai-labs:     ["announcement", "release", "launch", "research", "model", "paper", "technical report", "system card", "alignment", "July 2026"]
-  kol-views:   ["AI Twitter discussion", "X trending", "most discussed AI", "debate", "thread", "X article", "researcher article", "Claude Code", "agentic engineering"]
+  ai-labs:     ["announcement", "release", "launch", "preview", "open weights", "pricing", "subscription", "quota", "capacity", "product update", "research", "model", "paper", "technical report", "system card", "alignment", "latest"]
+  kol-views:   ["AI Twitter discussion", "X trending", "most discussed AI", "debate", "thread", "X article", "researcher article", "tested", "benchmark", "critique", "counterpoint", "developer reaction", "enterprise AI adoption", "AGI timeline", "frontier AI governance", "agentic engineering"]
   papers:      ["arxiv", "huggingface papers", "trending paper", "state of the art", "benchmark", "technical report", "model card", "alignment research"]
   open-source: ["github trending", "fastest growing repo", "open source AI", "stars", "social buzz", "X discussion", "AI trading agent GitHub", "quant agent GitHub"]
   ai-finance:  ["AI agent", "DeFAI", "AI trading", "AI in finance", "AI stock research", "financial agent", "quant agent", "LLM quant", "券商 AI 投研", "量化 agent"]
+  community-pulse: ["AI hot topics today", "developer reaction", "sudden launch", "service capacity", "pricing change", "今天 AI 圈", "新模型", "实测", "争议"]
+  access-quota: ["quota reset", "rate-limit reset", "banked reset", "usage limit", "weekly limit", "credits", "subscription paused", "capacity", "额度重置", "周额度", "订阅暂停", "算力不足"]
+  chinese-model-launches: ["Kimi K3", "Moonshot K3", "月之暗面 K3", "DeepSeek", "Qwen3.8", "Qwen", "GLM", "Seed", "Doubao", "Hunyuan", "ERNIE", "MiniMax", "new model", "preview", "open weights", "国产大模型发布"]
+  domestic-product-ops: ["Token Plan", "Qoder", "QoderWork", "pricing", "subscription", "quota", "capacity", "promotion", "API rollout", "套餐", "额度", "促销", "订阅", "容量", "渠道"]
+  domestic-research: ["technical report", "model card", "research", "paper", "arxiv", "benchmark", "post-training", "inference", "技术报告", "论文", "模型卡", "后训练", "推理效率"]
+  viewpoint-roles: ["originator", "independent evaluation", "tested", "critique", "counterpoint", "rebuttal", "首发", "独立实测", "质疑", "反方"]
 
 # 每日必须额外执行的高优先级查询（由 config/research_radar.yaml 解释）
 must_run_queries:
+  community_hotspots:
+    - 'AI community hot topics today model product launch controversy recent'
+    - '今天 AI 圈 热点 新模型 产品 争议'
+  access_and_quota:
+    - 'site:x.com quota reset AI coding assistant usage limit credits'
+    - 'site:x.com 额度重置 周额度 Codex Claude Cursor Kimi'
+    - 'AI product subscription paused capacity pricing change recent'
+  chinese_model_launches:
+    - 'Qwen3.8 official preview open weights Token Plan developer reaction'
+    - 'site:x.com/Alibaba_Qwen/status Qwen3.8'
+    - 'Kimi K3 Moonshot official launch developer reaction'
+    - 'site:x.com Kimi-K3 since:{date_minus_7d}'
+    - '国产大模型 新模型 发布 Kimi DeepSeek Qwen GLM recent'
+  domestic_lab_product_ops:
+    - 'Qwen Kimi DeepSeek GLM Seed Hunyuan ERNIE MiniMax pricing subscription quota capacity product update'
+    - '国产大模型 套餐 价格 额度 订阅 容量 API 渠道 最新'
+  domestic_lab_research:
+    - 'site:seed.bytedance.com/research latest model paper'
+    - 'site:github.com/Tencent-Hunyuan latest technical report model'
+    - 'site:ernie.baidu.com/blog latest ERNIE research model'
+    - 'site:github.com/minimax-ai latest model research'
+    - 'site:github.com/QwenLM OR site:huggingface.co/Qwen latest technical report'
+  dynamic_kol_views:
+    - 'site:x.com/status {emerging_topic} tested benchmark critique'
+    - 'site:x.com/status {emerging_topic} developer reaction counterpoint'
+    - 'site:x.com/status {emerging_topic} 实测 质疑 反方'
+  conversation_discovery:
+    - 'site:x.com enterprise AI adoption organization redesign agentic workflows'
+    - 'site:x.com AI-native company operating model B2B AI deployment'
+    - 'site:x.com AGI timeline frontier AI safety governance debate'
+    - 'site:x.com frontier AI standards body evaluation agentic deception'
+    - 'enterprise AI from pilot to production organizational change recent'
+    - 'AGI few years away response critique recent'
   researcher_longform:
     - 'site:x.com/trq212/article Anthropic Claude Code'
     - 'site:x.com filter:articles "Claude Code" "Anthropic"'
@@ -54,16 +94,20 @@ topic_tags:
   - { tag: "编码",          match: ["coding", "code", "swe-bench", "copilot", "编程"] }
   - { tag: "研究员长文",    match: ["x article", "article", "longform", "researcher", "长文", "研究员"] }
   - { tag: "实验室研究",    match: ["research", "alignment", "interpretability", "technical report", "system card", "研究", "技术报告"] }
-  - { tag: "国产模型",      match: ["DeepSeek", "Kimi", "Moonshot", "GLM", "Z.ai", "Qwen", "智谱", "月之暗面", "通义"] }
+  - { tag: "国产模型",      match: ["DeepSeek", "Kimi", "Moonshot", "GLM", "Z.ai", "Qwen", "Seed", "Doubao", "Hunyuan", "ERNIE", "MiniMax", "StepFun", "Pangu", "InternLM", "LongCat", "MiMo", "Ling", "智谱", "月之暗面", "通义", "豆包", "混元", "文心", "阶跃", "盘古"] }
+  - { tag: "厂商运营动作", match: ["Token Plan", "pricing", "subscription", "quota", "capacity", "promotion", "rollout", "套餐", "价格", "额度", "促销", "订阅", "容量", "渠道"] }
+  - { tag: "观点分歧",      match: ["critique", "counterpoint", "rebuttal", "debate", "tested", "质疑", "反方", "实测", "争议"] }
   - { tag: "金融/量化Agent", match: ["quant agent", "financial agent", "trading agent", "backtest", "broker", "量化", "投研", "回测"] }
   - { tag: "DeFAI",         match: ["defai", "on-chain agent", "defi"] }
   - { tag: "加密+AI",       match: ["crypto ai", "ai token", "virtuals", "memecoin", "发币"] }
   - { tag: "监管/合规",     match: ["regulation", "compliance", "export control", "监管", "管制", "合规"] }
   - { tag: "微调/训练",     match: ["fine-tune", "fine-tuning", "training", "rl", "post-training", "微调"] }
+  - { tag: "额度/订阅",     match: ["quota", "rate limit", "usage limit", "credits", "subscription", "capacity", "额度", "重置", "订阅", "算力不足"] }
+  - { tag: "产品热点",      match: ["launch", "rollout", "availability", "pricing", "发布", "上线", "热议", "实测"] }
 
 # 噪音过滤：标题/正文命中以下任一即降权或丢弃
 exclude:
-  hard_drop:   ["招聘", "hiring", "webinar 报名", "限时优惠", "广告", "sponsored"]
+  hard_drop:   ["招聘", "hiring", "webinar 报名", "限时优惠", "广告", "sponsored", "保留监测入口", "监听入口", "已完成 X-first", "无近期逐帖", "无近帖可入选", "待补采"]
   soft_demote: ["roundup", "weekly digest 转载", "纯榜单无内容", "重复报道"]
 
 # 清洗阈值
@@ -72,6 +116,14 @@ filters:
   require_url: true      # 必须有可访问来源 URL
   dedup_by: ["url", "title_cn"]  # 去重键
   max_items_per_dimension: 12
-  date_window_days: 14   # 默认只保留最近 14 天；窗口外需 heat=high 才破例（并标注日期）
+  fresh_signal_hours: 72
+  date_window_days: 7    # 每日主清单默认只保留最近 7 天
+  background_window_days: 30
+  min_fresh_ratio: 0.65
+  max_background_ratio: 0.20
+  cross_day_dedup_days: 7
+  require_specific_article_url: true
+  x_profile_is_not_evidence: true
+  gate_cli_requires_cited_tweets: true
   longform_min_detail_chars_zh: 650
   researcher_longform_should_not_be_summarized_only: true

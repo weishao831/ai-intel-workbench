@@ -20,3 +20,9 @@ agent_command:
 schedule_time: "09:30"
 schedule_push: true
 provider_default: public-web
+
+# X 浏览器安全边界：定时任务不得脚本化访问 X 网站；只有用户明确发起的
+# 交互式运行，才允许少量、只读地打开最终候选做作者/日期/正文核验。
+x_browser_mode: interactive_spot_check_only
+x_scheduled_browser_automation: false
+x_stop_on_challenge: true

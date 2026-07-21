@@ -4,8 +4,8 @@
 # ============================================================
 
 meta:
-  version: 1
-  updated: 2026-07-09
+  version: 4
+  updated: 2026-07-21
   owner_note: >
     这不是普通信源清单，而是每日调研前必须先扫的高优先级雷达。
     它用于发现没有进入官方新闻稿、但在 X Article、研究员博客、
@@ -14,6 +14,9 @@ meta:
 
 priority_policy:
   hard_priority_order:
+    - domestic_lab_model_release
+    - domestic_lab_product_ops
+    - domestic_lab_research
     - researcher_longform_recent
     - lab_research_official
     - chinese_frontier_lab_release
@@ -27,7 +30,10 @@ priority_policy:
     oss_recent_days: 21
   daily_quotas:
     min_researcher_longform_or_lab_research: 2
-    min_chinese_frontier_lab_checks: 3
+    min_chinese_frontier_lab_checks: 8
+    min_domestic_model_release_candidates: 2
+    min_domestic_product_ops_candidates: 2
+    min_domestic_research_candidates: 2
     min_finance_quant_oss_candidates: 6
     min_finance_quant_oss_selected: 2
   source_weight:
@@ -38,9 +44,41 @@ priority_policy:
     x_status_with_discussion: 0.82
     reputable_media_summary: 0.65
   fail_rule: >
-    如果当天没有选入任何研究员长文/官方研究页/国产模型论文，
-    必须在 dimensions[].notes 里写明「已扫但无入选」或「provider 受限」，
-    不允许静默缺失。
+    国内核心厂商必须每日全部轮询，并把模型发布、产品/运营动作、论文/技术研究分成三条独立记录。
+    任一轨道没有入选时，必须记录实际查询、候选数和淘汰原因；不允许用
+    「已扫描」或维护一个索引页来代替证据。
+
+domestic_lab_scan_policy:
+  core_daily:
+    - Qwen / 通义千问
+    - DeepSeek / 深度求索
+    - Moonshot AI / Kimi
+    - Z.ai / 智谱 GLM
+    - ByteDance Seed / 豆包
+    - Tencent Hunyuan / 腾讯混元
+    - Baidu ERNIE / 文心
+    - MiniMax
+  extended_rotation:
+    - StepFun / 阶跃星辰
+    - Huawei Pangu / 华为盘古
+    - InternLM / 书生浦语
+    - Meituan LongCat / 美团龙猫
+    - Xiaomi MiMo / 小米
+    - InclusionAI / 蚂蚁百灵
+  activity_tracks:
+    model_release:
+      sources: [official_blog, official_x, huggingface_model_card, github_release]
+      watch_for: [new model, preview, open weights, benchmark, API availability, context length]
+    product_ops:
+      sources: [product_docs, pricing_page, subscription_page, changelog, official_x]
+      watch_for: [quota, credits, pricing, subscription, capacity, rollout, plan, IDE, app, API]
+    research:
+      sources: [research_page, paper, technical_report, model_card, official_github]
+      watch_for: [paper, report, architecture, training, post-training, inference, evaluation]
+  selection_rule: >
+    每个厂商先分轨扫描，再按当天信号强度选入。模型预告只能写已确认的预览入口和官宣；
+    尚未公开的权重不能写成已发布。产品套餐、限额、容量和开发者工具要与模型能力分开记录；
+    论文和技术报告优先使用可定位到具体页面的一手来源。
 
 longform_detail_policy:
   applies_to:
@@ -65,6 +103,16 @@ longform_detail_policy:
     如果原文很长，优先提炼结构、论证链和可复用方法，而不是逐段复述。
 
 researcher_longform_watchlist:
+  # Frontier AI / AGI / science
+  - handle: "@demishassabis"
+    name: "Demis Hassabis"
+    org: "Google DeepMind / Isomorphic Labs"
+    focus: ["AGI timeline", "frontier AI", "AI for science", "governance"]
+    urls:
+      - "https://x.com/demishassabis"
+      - "https://demishassabis.substack.com/"
+    why: 其个人 X Article / 长文会直接影响 AGI 时间线、前沿模型治理和 AI for Science 讨论，必须按文章标题与具体 status 发现，不能只扫 DeepMind 官网索引
+
   # Anthropic / Claude Code / Agent 工程
   - handle: "@trq212"
     name: "Thariq Shihipar"
@@ -126,11 +174,13 @@ lab_research_watchlist:
       - "https://openai.com/index/"
     watch_terms: ["alignment", "reinforcement learning", "agent", "beneficial", "system card", "research"]
   - name: "Google DeepMind Research"
-    priority: medium
+    priority: high
     urls:
       - "https://deepmind.google/discover/blog"
       - "https://deepmind.google/research/"
-    watch_terms: ["world model", "robotics", "science", "agent", "Alpha", "Gemini"]
+      - "https://x.com/demishassabis"
+      - "https://demishassabis.substack.com/"
+    watch_terms: ["world model", "robotics", "science", "agent", "Alpha", "Gemini", "AGI", "frontier AI", "standards body"]
 
 chinese_frontier_lab_watchlist:
   - name: "DeepSeek"
@@ -150,7 +200,7 @@ chinese_frontier_lab_watchlist:
       - "https://moonshotai.github.io/Kimi-Researcher/"
       - "https://huggingface.co/moonshotai"
       - "https://github.com/moonshotai/kimi-k2"
-    watch_terms: ["Kimi", "K2", "Kimi-Researcher", "agentic", "coding", "thinking", "Moonshot"]
+    watch_terms: ["Kimi", "K2", "K3", "Kimi-Researcher", "agentic", "coding", "thinking", "Moonshot", "open weights", "subscription", "capacity", "额度"]
   - name: "Z.ai / 智谱"
     aliases: ["Z.ai", "Zhipu", "智谱", "GLM"]
     priority: high
@@ -162,12 +212,72 @@ chinese_frontier_lab_watchlist:
     watch_terms: ["GLM", "GLM-5.2", "long-horizon", "agentic engineering", "vibe coding"]
   - name: "Qwen / 通义千问"
     aliases: ["Qwen", "通义千问", "Alibaba"]
-    priority: medium
+    priority: high
     urls:
       - "https://qwenlm.github.io/blog"
+      - "https://x.com/Alibaba_Qwen"
+      - "https://qwenlm.github.io/qwen-code-docs/en/blog/updates/"
+      - "https://docs.qwencloud.com/token-plan/overview"
       - "https://huggingface.co/Qwen"
       - "https://github.com/QwenLM"
-    watch_terms: ["Qwen", "Agent", "World", "Coder", "VL", "long context"]
+    watch_terms: ["Qwen3.8", "Token Plan", "Qoder", "QoderWork", "open weights", "Qwen", "Agent", "World", "Coder", "VL", "long context"]
+  - name: "ByteDance Seed / 豆包"
+    aliases: ["Seed", "ByteDance", "字节跳动", "豆包"]
+    priority: high
+    urls:
+      - "https://seed.bytedance.com/research"
+      - "https://seed.bytedance.com/en/seed2"
+    watch_terms: ["Seed", "Doubao", "foundation model", "multimodal", "agent", "paper", "technical report"]
+  - name: "Tencent Hunyuan / 腾讯混元"
+    aliases: ["Hunyuan", "Tencent", "混元"]
+    priority: high
+    urls:
+      - "https://github.com/Tencent-Hunyuan"
+      - "https://huggingface.co/tencent"
+    watch_terms: ["Hunyuan", "Turbo", "Vision", "Video", "3D", "open source", "paper"]
+  - name: "Baidu ERNIE / 文心"
+    aliases: ["ERNIE", "Baidu", "百度", "文心"]
+    priority: high
+    urls:
+      - "https://ernie.baidu.com/blog"
+    watch_terms: ["ERNIE 5", "ERNIE 5.1", "Wenxin", "PaddlePaddle", "agent", "paper", "API"]
+  - name: "MiniMax"
+    aliases: ["MiniMax", "MiniMaxAI"]
+    priority: high
+    urls:
+      - "https://www.minimaxi.com/"
+      - "https://github.com/minimax-ai"
+    watch_terms: ["MiniMax", "M2", "Hailuo", "Speech", "Video", "Agent", "open source", "paper"]
+  - name: "StepFun / 阶跃星辰"
+    aliases: ["StepFun", "Step", "阶跃星辰"]
+    priority: medium
+    urls: ["https://www.stepfun.com/research"]
+    watch_terms: ["Step", "multimodal", "reasoning", "paper", "model"]
+  - name: "Huawei Pangu / 华为盘古"
+    aliases: ["Pangu", "Huawei", "华为盘古"]
+    priority: medium
+    urls: ["https://support.huaweicloud.com/productdesc-pangulm/"]
+    watch_terms: ["Pangu", "industry model", "agent", "research", "model update"]
+  - name: "InternLM / 书生浦语"
+    aliases: ["InternLM", "书生浦语"]
+    priority: medium
+    urls: ["https://github.com/InternLM"]
+    watch_terms: ["InternLM", "tool use", "agent", "open source", "technical report"]
+  - name: "Meituan LongCat / 美团龙猫"
+    aliases: ["LongCat", "Meituan", "龙猫"]
+    priority: medium
+    urls: ["https://github.com/meituan-longcat"]
+    watch_terms: ["LongCat", "agent", "open source", "paper", "model"]
+  - name: "Xiaomi MiMo / 小米"
+    aliases: ["MiMo", "Xiaomi", "小米"]
+    priority: medium
+    urls: ["https://github.com/XiaomiMiMo"]
+    watch_terms: ["MiMo", "reasoning", "coding", "agent", "open source", "paper"]
+  - name: "InclusionAI / 蚂蚁百灵"
+    aliases: ["InclusionAI", "Ling", "蚂蚁百灵"]
+    priority: medium
+    urls: ["https://github.com/inclusionAI"]
+    watch_terms: ["Ling", "agent", "multimodal", "open source", "paper", "model"]
 
 open_source_finance_quant_watchlist:
   search_queries:

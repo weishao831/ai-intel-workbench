@@ -79,7 +79,7 @@ def apply_persistent_config(payload):
     return payload
 
 
-def write_digest_from_json(date_value, json_path, language_override=None):
+def write_digest_from_json(date_value, json_path, language_override=None, publish_manifest=True):
     date_iso = normalize_date(date_value)
     key = slash_date(date_iso)
     cfg = runtime_config()
@@ -107,7 +107,10 @@ def write_digest_from_json(date_value, json_path, language_override=None):
         "",
     ]
     write_text(out, "\n".join(text))
-    update_manifest(date_iso, len(payload.get("items", [])))
+    if publish_manifest:
+        update_manifest(date_iso, len(payload.get("items", [])))
+    else:
+        print("[run] 已写入候选 digest；通过质量校验后再更新 manifest")
     print("[run] 已写入", out)
     return out
 
@@ -198,29 +201,60 @@ def create_research_prompt(date_value, language_override=None):
 
 执行要求：
 
-1. 读取 `config/industry.yaml`、`config/sources.yaml`、`config/keywords.yaml`、`config/kol.yaml`、`config/research_radar.yaml`。
-2. 先执行 `config/research_radar.yaml` 的高优先级雷达，再做普通五维度搜索。雷达必须覆盖：
+1. 读取 `config/industry.yaml`、`config/sources.yaml`、`config/keywords.yaml`、`config/kol.yaml`、`config/conversation_radar.yaml`、`config/research_radar.yaml`。
+2. 先执行 `config/conversation_radar.yaml` 的话题发现，不要一上来按五维度填表：
+   - 先开放扫描过去 24 小时 AI 圈热词，再用当天日期、最近 72 小时和 7 天窗口宽搜，先找 8-15 个候选讨论；
+   - 每天强制执行 `mandatory_pulse` 八组查询：`community_hotspots`、`access_and_quota`、`chinese_frontier_models`、`x_viewpoints`、`domestic_lab_models`、`domestic_lab_product_ops`、`domestic_lab_research`、`dynamic_kol_views`；
+   - 额度重置、usage limits、credits、订阅/价格/容量变化、产品上线、开发者工具和刚发布的国产模型都属于高优先级产品情报；
+   - 必扫「AI 如何进入组织 / AI B 端」与「AGI 临近 / Frontier AI」两个战略镜头；
+   - 从候选讨论反向提取人物、模型/产品名、文章标题、专有词和反方观点，再做定向搜索；静态 KOL/主题配置不能限制当天新热点；
+   - 最终聚成 3-5 个话题簇，每个热点尽量有两条独立来源，再映射到五个展示维度。
+3. 执行 `config/research_radar.yaml` 的高优先级雷达。雷达必须覆盖：
    - 研究员长文 / X Articles：尤其 Anthropic Claude Code、OpenAI/alignment 研究员；
+   - Demis Hassabis 等 Frontier AI / AGI 长文作者；
    - 官方研究页：Anthropic Research、OpenAI Research、OpenAI Alignment、Google DeepMind Research；
-   - 国产前沿实验室：DeepSeek、Kimi/Moonshot、Z.ai/GLM、Qwen；检查 official page、Hugging Face model card、GitHub technical report；
+   - 国内核心厂商每日全部检查：Qwen、DeepSeek、Kimi/Moonshot、Z.ai/GLM、ByteDance Seed/豆包、Tencent Hunyuan、Baidu ERNIE、MiniMax；
+   - 扩展轮询 StepFun、Huawei Pangu、InternLM、Meituan LongCat、Xiaomi MiMo、InclusionAI；
+   - 每个厂商必须分别扫描三条活动轨道：`model_release`、`product_ops`、`research`。预告与已公开权重必须区分，套餐/限额/容量/开发者工具不能被模型发布项吞掉；
    - 开源金融/量化 Agent：从 X 讨论 + GitHub topics 双入口发现，不只看 stars。
-3. 按五维度调研：AI 大厂动态、KOL 观点、前沿论文、开源项目、AI × 金融。研究雷达发现可进入任一维度。
-4. KOL 观点维度必须执行 X-first 流程：先从 `config/kol.yaml` 取重点 handle，用 `site:x.com/<handle>/status`、`site:x.com/<handle>/article`、公开 X status/profile/article、已配置的 Gate-News `news_feed_search_x` / X API / 本机 provider 发现近 7 天帖子；目标是 KOL 维度至少 60% 条目来自 X status/profile/article 或带 `x_src` 的 X 证据。若达不到，必须在 `dimensions[].notes` 写明 provider 限制和 fallback 来源。
-5. 优先英文关键词与一手来源；X/Twitter 只用可访问的公开 status/profile/article 或用户本地显式配置的 provider，不读取 cookie/token。
-6. 对 DeepSeek、Kimi/Moonshot、智谱/Z.ai、Qwen 的文章、论文、模型卡、GitHub release 提升优先级；即使它们不是当天最大舆论，也要纳入候选池并给出是否入选的判断。
-7. 开源项目额外关注金融 Agent、量化 Agent、AI 投研、回测/券商/交易所接口、自动推送、风控闭环；星少但机制新、X 讨论早期升温的项目可标 `potential=潜力新星`。
-8. 过滤营销、招聘、重复与不可验证信息；保留来源 URL、日期和可信度说明。不要因为高价值研究员长文暂时不够病毒传播就直接丢弃。
-9. 长文/研究项写作规则：若 `content_type` 是 `x_article`、`official_research`、`paper`、`technical_report`、`model_card`，通常设置 `depth=deep`，`detail` 至少约 650 个中文字符，并补充 `key_points`、`examples`、`product_implications`、`limitations`。目标是用户不跳原文也能了解七七八八。
-10. 按“产出语言”要求组织 `title`、`summary`、`detail`、`why`、`buzz`、`dimensions.overview`、`hot_topics_today.summary`、`practice_list` 等面向用户字段。
-11. 产出 canonical JSON，字段参考 `skills/daily-intelligence-workbench/references/data-schema.md`。
-12. 写入后运行：
+4. 按五维度组织展示：AI 大厂动态、KOL 观点、前沿论文、开源项目、AI × 金融。研究雷达与话题雷达发现可进入任一维度。
+5. KOL 观点必须执行 X-first，但只接受具体观点证据：
+   - 从完整 `config/kol.yaml` 和话题发现的新人物中选取候选；
+   - 定时/无人值守运行只用公开搜索和 Gate CLI `news feed search-x` 发现近 7 天帖子；不要脚本化搜索、滚动或批量读取 X 网站；
+   - Gate CLI 仅作候选发现。把每次 `search-x --format json` 结果保存后运行 `python3 scripts/validate_x_candidates.py <result.json>`；校验失败就整段丢弃，即使 `summary`/`content` 非空；但不能因此结束观点发现；
+   - Gate 无 cited_tweets/items 时，立即降级为公开网页搜索，用热点专有词加 `site:x.com` 找具体 status/article。定时运行只采用公开索引中同时可见作者、日期、正文摘录的原帖，设置 `provider=public-web-index`、`verification_level=public_index`、`excerpt`；Gate 的无引用摘要绝不能替代作者观点；
+   - 只有用户明确发起的交互式运行，才可低频打开少量最终候选的具体 `x.com/<handle>/status/<digits>` 或 `x.com/i/article/<digits>`，核对作者、时间和可见正文；定时任务不能自动复用登录态；
+   - profile、with_replies、search、home 只用于导航，绝不能写成观点条目，也不能计入 X 比例；
+   - X Article 正文被登录墙阻挡时，保留 X 文章/状态链接，并补作者自有博客、Substack 或官方镜像作为正文证据；遇到登录墙、验证码或安全拦截立即停止，不得绕过。
+6. KOL 维度至少 4 条，至少 60% 来自浏览器或公开索引核验过的具体 X status/article。每个重点话题不能只查固定名单，要用专有词、标题、产品名反向找人：
+   - 至少选入 2 条 `discovery_mode=topic_expansion` 的观点；
+   - 至少 2 个重点话题同时拥有 `originator` 和 `independent_evaluation`；
+   - 至少 1 个话题有 `counterpoint`，用来揭示部署门槛、证据边界或反方逻辑。
+   达不到时不要写占位条目，应让质量校验失败。
+7. 执行新鲜度与去重门槛：
+   - 至少 65% 条目在 7 天内发布，至少 5 条在 72 小时内发布；
+   - 超过 7 天只能设为 `recency_role=background`，并写清与本周新事件绑定的 `why_now`；
+   - 超过 30 天不得作为每日独立条目；
+   - 读取此前 7 期 digest，重复 URL/近似标题默认淘汰；确有实质更新时设置 `repeat_update=true` 并填写 `new_evidence`；
+   - 禁止用官网索引页、研究列表页、主题页或 profile 代替具体文章深链。
+8. 优先英文关键词与一手来源，不读取 cookie/token。对所有国内核心厂商的具体文章、论文、模型卡、官方 X、GitHub release、产品更新与套餐说明提升优先级。
+9. 开源项目额外关注金融 Agent、量化 Agent、AI 投研、回测/券商/交易所接口、自动推送、风控闭环；星少但机制新、X 讨论早期升温的项目可标 `potential=潜力新星`。
+10. 过滤营销、招聘、重复、旧闻填充、监测占位与不可验证信息；保留来源 URL、真实发布日期和可信度说明。不要把来源日期改成运行当天。
+11. 长文/研究项写作规则：若 `content_type` 是 `x_article`、`official_research`、`paper`、`technical_report`、`model_card`，通常设置 `depth=deep`，`detail` 至少约 650 个中文字符，并补充 `key_points`、`examples`、`product_implications`、`limitations`。目标是用户不跳原文也能了解七七八八。
+12. 按“产出语言”要求组织面向用户字段。产出 canonical JSON 时设置根字段 `quality_version: 4`，每条填写 `topic_cluster`、`recency_role`；AI 大厂条目追加 `lab_activity_type=model_release|product_ops|research`；KOL 条目追加 `discovery_mode=watchlist|topic_expansion` 和 `viewpoint_role=originator|independent_evaluation|counterpoint|context`；X 条目填写 `evidence.provider`、`verification_level`、`excerpt`、`verified_url`、`verified_at`、`published_at` 和 `direct`。字段参考 `skills/daily-intelligence-workbench/references/data-schema.md`。
+13. 根字段必须写 `coverage_report`。八个必扫 query group 均记录 `key`、`status=completed`、实际 `queries`、`candidate_count`、`selected_ids`；有候选但未入选时写 `rejection_reasons`。同时记录：
+   - `x_pipeline`：Gate 查询数/逐帖引用数、公开索引查询数/具体帖子数、交互浏览器查询数/核验帖子数；
+   - `lab_pipeline`：`core_labs_checked` 覆盖 8 家核心厂商，`activity_tracks` 完整记录三条轨道的查询、候选和入选/淘汰；
+   - `viewpoint_pipeline`：动态候选不少于 6，入选不少于 2，`topic_roles` 记录重点话题的首发者、独立评估和反方。
+   禁止用笼统的“已扫描”代替。
+14. 写入后运行：
 
 ```bash
-python3 scripts/run_daily.py --date {date_iso} --from-json <canonical-json-path>
+python3 scripts/run_daily.py --date {date_iso} --from-json <canonical-json-path> --publish-on-valid
 python3 scripts/validate_digest.py --date {date_iso}
 ```
 
-可选：
+仅在验证无 error 后可选推送：
 
 ```bash
 python3 scripts/push_lark.py
@@ -257,6 +291,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default="today", help="YYYY-MM-DD, YYYY/MM/DD, or today")
     parser.add_argument("--from-json", help="Canonical digest JSON to write into data/YYYY/MM/DD/digest.js")
+    parser.add_argument("--publish-on-valid", action="store_true", help="Update manifest only after digest validation passes")
     parser.add_argument("--sample", action="store_true", help="Copy bundled sample data for a smoke run")
     parser.add_argument("--sample-date", default="2026-06-29", help="Sample date to copy when --sample is used")
     parser.add_argument("--push", action="store_true", help="Push after successful validation")
@@ -265,9 +300,17 @@ def main():
     args = parser.parse_args()
 
     date_iso = normalize_date(args.date)
+    pending_manifest_count = None
 
     if args.from_json:
-        write_digest_from_json(date_iso, args.from_json, args.language)
+        source_payload = load_json(args.from_json)
+        pending_manifest_count = len(source_payload.get("items", []))
+        write_digest_from_json(
+            date_iso,
+            args.from_json,
+            args.language,
+            publish_manifest=not args.publish_on_valid,
+        )
     elif args.sample:
         copy_sample(date_iso, args.sample_date)
     elif digest_path_for(date_iso).exists():
@@ -284,6 +327,8 @@ def main():
         rc = subprocess.call([sys.executable, "scripts/validate_digest.py", "--date", date_iso], cwd=str(ROOT))
         if rc != 0:
             sys.exit(rc)
+        if args.publish_on_valid and pending_manifest_count is not None:
+            update_manifest(date_iso, pending_manifest_count)
         if args.push:
             sys.exit(subprocess.call([sys.executable, "scripts/push_lark.py"], cwd=str(ROOT)))
     return 0

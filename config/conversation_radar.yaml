@@ -1,0 +1,294 @@
+# ============================================================
+# 话题雷达 conversation_radar.yaml
+# 目的：先发现「最近大家在争论什么」，再进入固定五维度采编。
+# ============================================================
+
+meta:
+  version: 3
+  updated: 2026-07-21
+  owner_note: >
+    KOL 名单用于持续监听人物，不能替代话题发现。每日先从 X、公开搜索、
+    Hacker News、Reddit、研究员文章和一手站点发现正在升温的议题，
+    再回到人物、文章和原帖补齐可验证证据。
+
+workflow:
+  - step: pulse
+    rule: >
+      先做「过去 24 小时 AI 圈在讨论什么」的开放扫描，抽取突然升温的产品名、
+      模型名、政策变化、服务异常和争议词。此步骤不得被既有战略主题或 KOL 名单
+      限制；否则会系统性漏掉当天刚出现的热点。
+  - step: discover
+    rule: >
+      使用当天日期和最近 72 小时/7 天窗口做宽查询，先得到 6-10 个候选讨论，
+      不先限定为既有公司、产品或 KOL。
+  - step: domestic-lab-sweep
+    rule: >
+      对国内核心大模型厂商分别扫描模型发布、产品/运营动作、论文/技术报告三条链。
+      不得用“打开过官网”代替三类查询，也不得只盯既有型号。
+  - step: expand
+    rule: >
+      从候选讨论提取作者、组织、文章标题、专有词和反方观点，再做定向查询；
+      同一个话题至少寻找一手观点与一条独立回应或事实背景。
+  - step: viewpoint-triad
+    rule: >
+      对前 2-3 个重点话题，反向寻找首发者/官方、独立实测或评估者、质疑或反方。
+      作者可来自固定 KOL 名单之外；名单是监听池，不是入选边界。
+  - step: verify
+    rule: >
+      用浏览器打开最终来源。X 条目必须落到具体 status 或 article，记录作者、
+      发布时间和可见正文；文章正文被登录墙阻挡时，补作者自有博客、Substack
+      或官方站点作为可读正文来源。
+  - step: cluster
+    rule: >
+      将证据聚成 3-5 个「今天值得理解的讨论」，解释分歧、变化和为什么现在重要，
+      再映射到 lab、kol、paper、oss、fin 五个展示维度。
+
+mandatory_pulse:
+  note: >
+    每组每天至少执行一个中英文查询，并把查询、候选数、入选条目或淘汰原因写入
+    canonical JSON 的 coverage_report。它们是热点发现入口，不代表每天都必须硬塞一条。
+  groups:
+    community_hotspots:
+      purpose: 发现静态配置未预见的突发讨论
+      queries:
+        - 'AI community hot topics today model product launch controversy'
+        - '今天 AI 圈 热点 新模型 产品 争议'
+      watch_for:
+        - 短时间内反复出现的新专有名词
+        - 官方发布与用户实测之间的明显反差
+        - 讨论量、引用量或搜索结果在 24 小时内快速上升
+    access_and_quota:
+      purpose: 捕捉额度、订阅、价格、容量和可用性变化
+      queries:
+        - 'AI coding assistant quota reset usage limit credits subscription capacity recent'
+        - '额度重置 周额度 订阅 暂停 算力不足 AI 编程助手'
+      watch_for:
+        - rate-limit reset、banked reset、credits、weekly/monthly limit
+        - 订阅暂停、套餐变更、涨价、免费额度、容量不足
+        - 官方规则与用户实际重置时间不一致的争议
+    chinese_frontier_models:
+      purpose: 捕捉国产前沿模型和产品发布，不只扫描既有版本号
+      queries:
+        - 'Chinese frontier AI model launch Moonshot Kimi DeepSeek Qwen GLM recent'
+        - '国产大模型 新模型 发布 Kimi DeepSeek Qwen GLM 月之暗面'
+      watch_for:
+        - 新型号、代号、泄露、预热和正式发布
+        - benchmark、开放权重、API/产品上线和容量变化
+        - 中文社区首发信号与海外开发者反馈
+    x_viewpoints:
+      purpose: 为热点补具体作者、原帖和分歧，而不是生成无出处的社媒摘要
+      queries:
+        - 'site:x.com AI model launch quota reset developer reaction recent'
+        - 'site:x.com 额度重置 新模型 实测 观点'
+      watch_for:
+        - 具体 x.com/<handle>/status/<id> 或 X Article
+        - 明确可归属于作者的判断、实测或反对意见
+        - 官方帖、独立评测与用户体验至少两种角色
+    domestic_lab_models:
+      purpose: 独立检查国内大厂的新模型、预览、权重和模型卡
+      queries:
+        - 'Qwen DeepSeek Kimi GLM Seed Hunyuan ERNIE MiniMax new model preview open weights recent'
+        - '通义 深度求索 Kimi 智谱 字节Seed 混元 文心 MiniMax 新模型 预览 开源'
+      watch_for:
+        - 新型号、preview、API 上线、开放权重和模型卡
+        - 发布方 benchmark 与独立评测的差异
+    domestic_lab_product_ops:
+      purpose: 捕捉国内厂商的套餐、价格、额度、容量、渠道和生态动作
+      queries:
+        - 'Qwen Kimi DeepSeek GLM Seed Hunyuan ERNIE MiniMax pricing subscription quota capacity product update recent'
+        - '国产大模型 价格 套餐 额度 订阅 容量 API 渠道 生态 最新'
+      watch_for:
+        - Token Plan、会员、免费额度、促销、订阅暂停和价格变化
+        - 产品上线、入口迁移、开源承诺、开发者生态与企业合作
+    domestic_lab_research:
+      purpose: 捕捉国内厂商未必进入新闻稿的论文、技术报告和评测集
+      queries:
+        - 'site:arxiv.org Qwen OR DeepSeek OR Moonshot OR GLM OR ByteDance Seed OR Hunyuan OR ERNIE OR MiniMax 2026'
+        - '国产大模型 技术报告 论文 benchmark GitHub HuggingFace 最新'
+      watch_for:
+        - 官方 research 页、arXiv、GitHub tech report、Hugging Face model card
+        - 训练、后训练、推理效率、Agent、多模态、评测和安全研究
+    dynamic_kol_views:
+      purpose: 从当天话题反向找新作者，弥补固定 KOL 名单滞后
+      queries:
+        - 'site:x.com/status AI model tested benchmark critique developer reaction recent'
+        - 'site:x.com/status AI 新模型 实测 质疑 反方 开发者 观点'
+      watch_for:
+        - 话题首发者、独立实测/评估者、质疑/反方三种角色
+        - 非固定名单但帖子有原始数据、可复现体验或鲜明论证的作者
+
+strategic_lenses:
+  organization_ai:
+    cn: AI 如何进入组织 / AI B 端
+    queries:
+      - 'enterprise AI adoption organization redesign agentic workflows'
+      - 'AI-native company operating model B2B AI deployment'
+      - 'from AI pilot to production organizational change'
+      - 'AI 进入组织 B端 工作流 组织变革'
+    watch_for:
+      - 从个人提效走向团队流程和系统权限
+      - 自下而上采用与管理层重构之间的冲突
+      - ROI、数据治理、授权、审计和岗位变化
+      - 真实规模化案例与失败复盘
+
+  frontier_agi:
+    cn: AGI 临近 / Frontier AI
+    queries:
+      - 'AGI timeline frontier AI debate safety governance'
+      - 'frontier model standards body evaluation agentic deception'
+      - 'AGI few years away response critique'
+      - 'AGI 临近 前沿模型 治理 争论'
+    watch_for:
+      - 领先研究者对 AGI 时间线的新判断
+      - 能力加速与安全、监管、国际协调之间的张力
+      - 具体治理框架、评测方法和反对意见
+
+  agent_work:
+    cn: Agent 如何改变工作
+    queries:
+      - 'agentic workflows organizational work AI coworkers'
+      - 'AI agents delegation permissions audit enterprise'
+      - 'AI agent workflow failure lessons production'
+    watch_for:
+      - workflow、harness、上下文、授权和人类接管
+      - 从聊天工具到可执行系统的产品变化
+      - 生产事故、评测和可观察性
+
+  frontier_products_and_models:
+    cn: 模型与产品范式变化
+    queries:
+      - 'new AI product paradigm model release discussion'
+      - 'multimodal coding agent research release debate'
+      - 'open model technical report social discussion'
+    watch_for:
+      - 新能力是否改变产品边界，而不只是刷新榜单
+      - 一手技术报告与使用者实测之间的差异
+
+source_policy:
+  priority_order:
+    - browser_verified_x_status_or_article
+    - author_owned_longform_or_official_primary_source
+    - official_research_paper_model_card_or_repository
+    - public_search_result_with_direct_source
+    - gate_cli_candidate_discovery
+    - reputable_secondary_analysis
+
+  gate_cli_rule: >
+    Gate CLI search-x 只用于发现候选。只有 count > 0、cited_tweets 非空，
+    且每条引用 URL 都能在浏览器打开为真实 x.com/<handle>/status/<digits>
+    或 x.com/i/article/<digits> 时，才可作为 X 证据。若 items/cited_tweets 为空，
+    即使 summary/content 非空也必须整段丢弃；example、占位或无法打开的 URL 直接丢弃。
+
+  x_fallback_rule: >
+    Gate CLI 没有 cited_tweets/items 时，不能结束 X 采集。应立即改用公开网页搜索，
+    用热点专有词和 site:x.com 找到具体 status/article。定时运行可采用公开索引中可见的
+    作者、日期、正文摘录，并标记 provider=public-web-index、verification_level=public_index；
+    Gate CLI 的无引用总结本身仍不得作为观点。用户主动运行时，再用浏览器低频核验少量
+    最终候选，标记 verification_level=direct_page。
+
+  x_evidence_rule: >
+    profile、with_replies、search、home 页面只用于寻找帖子，不是观点证据，
+    不得写成 digest item，不得计入 KOL X 来源比例。
+
+  browser_safety_rule: >
+    定时或无人值守运行不得脚本化打开、搜索、滚动或批量读取 X 网站，也不得复用
+    登录态做自动抓取。只有用户明确发起的交互式运行，才允许低频、只读地打开少量
+    最终候选做核验；遇到登录墙、验证码或安全拦截立即停止，不得绕过。
+
+freshness_policy:
+  fresh_signal_hours: 72
+  current_window_days: 7
+  background_window_days: 30
+  daily_min_fresh_ratio: 0.65
+  max_background_ratio: 0.20
+  exception_rule: >
+    超过 7 天的来源只能作为 background，并必须填写 recency_role=background、
+    why_now 和本周新触发因素。超过 30 天不得进入每日主清单；若确有必要，
+    只能放在某个新话题的背景说明中，不能独立占一条热点名额。
+
+daily_quality_floor:
+  min_topic_clusters: 3
+  min_items_published_within_72h: 5
+  min_items_published_within_7d: 8
+  min_kol_items: 4
+  min_verified_x_kol_ratio: 0.60
+  min_independent_sources_per_hot_topic: 2
+  no_placeholder_items: true
+  no_generic_index_urls: true
+  no_silent_repeat_from_previous_7_days: true
+  required_coverage_groups:
+    - community_hotspots
+    - access_and_quota
+    - chinese_frontier_models
+    - x_viewpoints
+    - domestic_lab_models
+    - domestic_lab_product_ops
+    - domestic_lab_research
+    - dynamic_kol_views
+  no_unattributed_social_summary: true
+
+domestic_lab_coverage:
+  core_daily:
+    - qwen
+    - deepseek
+    - kimi
+    - zai
+    - bytedance_seed
+    - tencent_hunyuan
+    - baidu_ernie
+    - minimax
+  extended_rotation:
+    - stepfun
+    - huawei_pangu
+    - internlm
+    - meituan_longcat
+    - xiaomi_mimo
+    - inclusionai
+  activity_tracks:
+    - model_release
+    - product_ops
+    - research
+  rule: >
+    核心 8 家每日都要留下扫描记录；扩展厂商至少每 3 个工作日轮巡一次。
+    没有入选内容时记录原因，不用旧闻填充。
+
+viewpoint_discovery:
+  required_roles:
+    - originator
+    - independent_evaluation
+    - counterpoint
+  min_dynamic_candidates: 6
+  min_dynamic_selected: 2
+  min_topics_with_originator_and_independent: 2
+  min_topics_with_counterpoint: 1
+  rule: >
+    优先用当天热点词反向找人，再与固定 KOL 池交叉。不得因为作者不在 kol.yaml
+    就丢弃高信息量观点；也不得把低信息回复当成“反方”凑数。
+
+anti_patterns:
+  - 把「已扫描」「保留监测入口」「无近帖可引用」写成情报条目
+  - 用 X profile 或 with_replies 冒充具体观点
+  - Gate CLI 无引用时仍采用其流畅总结
+  - 把来源发布日期改成当天，制造内容很新的假象
+  - 连续多天复用同一 URL，只改中文标题
+  - 用官网列表页、研究索引页代替具体文章深链
+  - 为填满五个维度而加入旧内容或弱内容
+
+enterprise_ai_watchlist:
+  note: 仅作为起始监听池；每日宽查询发现的新人物必须动态加入候选，不受此名单限制。
+  x_handles:
+    - "@emollick"
+    - "@AndrewYNg"
+    - "@levie"
+    - "@satyanadella"
+    - "@bindureddy"
+    - "@martin_casado"
+    - "@a16z"
+  primary_sources:
+    - "https://www.anthropic.com/economic-index"
+    - "https://openai.com/signals/"
+    - "https://www.microsoft.com/en-us/worklab/work-trend-index/"
+    - "https://www.mckinsey.com/capabilities/quantumblack/our-insights"
+  selection_note: >
+    关注具体组织机制、流程改造、权限与 ROI 证据，不把企业 AI 厂商营销稿或
+    没有案例支撑的“AI-native”口号当作重点观点。

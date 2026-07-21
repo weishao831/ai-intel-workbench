@@ -3,14 +3,39 @@
 """Validate a generated digest.js and manifest.js using lightweight checks."""
 
 import argparse
+import datetime as dt
 import json
 import re
 import sys
+from urllib.parse import urlparse
 
 from common import ROOT, digest_path_for, extract_latest_from_manifest, read_text, slash_date
 
 
 DEEP_TYPES = {"x_article", "official_research", "paper", "technical_report", "model_card", "long_blog"}
+X_STATUS_RE = re.compile(r"^https?://(?:(?:www|mobile)\.)?x\.com/[^/?#]+/status/(\d{15,})(?:[/?#].*)?$", re.I)
+X_ARTICLE_RE = re.compile(r"^https?://(?:www\.)?x\.com/(?:i/article/(\d{15,})|[^/?#]+/article/(\d{15,}))(?:[/?#].*)?$", re.I)
+PLACEHOLDER_TERMS = (
+    "保留监测入口",
+    "保留公开 x",
+    "监听入口",
+    "已完成 x-first",
+    "已纳入监测",
+    "无近期逐帖",
+    "无近帖可入选",
+    "待补采",
+    "provider 无近帖",
+)
+GENERIC_INDEX_PATHS = {
+    ("www.anthropic.com", "/research"),
+    ("anthropic.com", "/research"),
+    ("www.anthropic.com", "/news"),
+    ("anthropic.com", "/news"),
+    ("openai.com", "/research"),
+    ("openai.com", "/news/research"),
+    ("openai.com", "/index"),
+    ("deepmind.google", "/research"),
+}
 RESEARCH_DOMAINS = (
     "anthropic.com/research",
     "openai.com/research",
@@ -22,7 +47,128 @@ RESEARCH_DOMAINS = (
     "z.ai/blog",
     "github.com/zai-org",
     "huggingface.co/zai-org",
+    "qwenlm.github.io",
+    "docs.qwencloud.com",
+    "huggingface.co/qwen",
+    "github.com/qwenlm",
+    "seed.bytedance.com",
+    "github.com/tencent-hunyuan",
+    "ernie.baidu.com/blog",
+    "github.com/minimax-ai",
+    "stepfun.com/research",
+    "support.huaweicloud.com/productdesc-pangulm",
+    "github.com/internlm",
+    "github.com/meituan-longcat",
+    "github.com/xiaomimimo",
+    "github.com/inclusionai",
 )
+V3_REQUIRED_COVERAGE_GROUPS = {
+    "community_hotspots",
+    "access_and_quota",
+    "chinese_frontier_models",
+    "x_viewpoints",
+}
+V4_REQUIRED_COVERAGE_GROUPS = V3_REQUIRED_COVERAGE_GROUPS | {
+    "domestic_lab_models",
+    "domestic_lab_product_ops",
+    "domestic_lab_research",
+    "dynamic_kol_views",
+}
+CORE_DOMESTIC_LABS = {
+    "qwen",
+    "deepseek",
+    "kimi",
+    "zai",
+    "bytedance_seed",
+    "tencent_hunyuan",
+    "baidu_ernie",
+    "minimax",
+}
+LAB_ACTIVITY_TYPES = {"model_release", "product_ops", "research"}
+KOL_DISCOVERY_MODES = {"watchlist", "topic_expansion"}
+VIEWPOINT_ROLES = {"originator", "independent_evaluation", "counterpoint", "context"}
+SCHEDULED_X_PROVIDER_TOKENS = (
+    "public-web",
+    "web-search",
+    "public-index",
+    "official-api",
+)
+
+
+def item_x_urls(item):
+    urls = [item.get("url", "")]
+    urls.extend(item.get("x_src") or [])
+    evidence = item.get("evidence") or {}
+    urls.append(evidence.get("verified_url", ""))
+    return [str(url).strip() for url in urls if str(url).strip()]
+
+
+def is_concrete_x_evidence(url):
+    if not (X_STATUS_RE.match(url) or X_ARTICLE_RE.match(url)):
+        return False
+    match = re.search(r"/(?:status|article)/(\d+)(?:[/?#].*)?$", str(url), re.I)
+    if not match:
+        return False
+    value = match.group(1)
+    if len(value) < 15 or len(set(value)) == 1:
+        return False
+    ascending = "".join(str(index % 10) for index in range(len(value)))
+    descending = "".join(str(9 - (index % 10)) for index in range(len(value)))
+    return value not in {ascending, descending}
+
+
+def is_x_discovery_only(url):
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().removeprefix("www.").removeprefix("mobile.")
+    if host != "x.com":
+        return False
+    return not is_concrete_x_evidence(url)
+
+
+def is_generic_index_url(url):
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    path = parsed.path.rstrip("/") or "/"
+    if (host, path) in GENERIC_INDEX_PATHS:
+        return True
+    if host.endswith("x.com") and is_x_discovery_only(url):
+        return True
+    if host == "github.com" and path.startswith("/topics/"):
+        return True
+    if host == "huggingface.co" and path == "/papers" and parsed.query:
+        return True
+    return False
+
+
+def normalize_title(title):
+    title = re.sub(r"^@[^：:]+[：:]", "", str(title or ""))
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", title.lower())
+
+
+def parse_item_age(digest_date, item_date):
+    try:
+        current = dt.date.fromisoformat(digest_date)
+        published = dt.date.fromisoformat(str(item_date))
+    except (TypeError, ValueError):
+        return None
+    return (current - published).days
+
+
+def load_recent_payloads(current_date, days=7):
+    current = dt.date.fromisoformat(current_date)
+    recent = []
+    for path in sorted((ROOT / "data").glob("*/*/*/digest.js")):
+        payload = load_strict_payload(read_text(path))
+        if not payload or not payload.get("date"):
+            continue
+        try:
+            payload_date = dt.date.fromisoformat(str(payload["date"]))
+        except ValueError:
+            continue
+        age = (current - payload_date).days
+        if 1 <= age <= days:
+            recent.append(payload)
+    return recent
 
 
 def active_industry_anchors():
@@ -91,35 +237,327 @@ def validate_digest(date_value):
     if len(urls) < max(1, len(item_ids) // 2):
         warnings.append("URL 数量偏少：%d urls / %d items" % (len(urls), len(item_ids)))
     if payload:
-        kol_items = [item for item in payload.get("items", []) if item.get("dim") == "kol"]
-        x_kol = [
-            item for item in kol_items
-            if "x.com/" in (item.get("url", "") + " " + " ".join(item.get("x_src") or []))
-            or str(item.get("source", "")).lower().startswith(("x", "twitter"))
-        ]
-        if kol_items:
-            ratio = len(x_kol) / float(len(kol_items))
-            print("[validate] kol_x_sources=%d/%d (%.0f%%)" % (len(x_kol), len(kol_items), ratio * 100))
-            if ratio < 0.5:
-                warnings.append("KOL 维度 X 来源占比偏低：%d/%d；请优先补公开 X status/profile 或 x_src" % (len(x_kol), len(kol_items)))
+        items = payload.get("items", [])
+        try:
+            quality_version = int(payload.get("quality_version") or 0)
+        except (TypeError, ValueError):
+            quality_version = 0
+        strict_quality = quality_version >= 2
+        coverage_quality = quality_version >= 3
+        expanded_quality = quality_version >= 4
+
+        def quality_issue(message, hard=True):
+            if strict_quality and hard:
+                errors.append(message)
+            else:
+                warnings.append(message)
+
+        if not strict_quality:
+            warnings.append("legacy digest：缺少 quality_version=2；新鲜度、X 实帖和跨天去重仅报告，不阻断")
+
+        if coverage_quality:
+            coverage = payload.get("coverage_report") or {}
+            required_coverage_groups = V4_REQUIRED_COVERAGE_GROUPS if expanded_quality else V3_REQUIRED_COVERAGE_GROUPS
+            raw_groups = coverage.get("query_groups") or []
+            if isinstance(raw_groups, dict):
+                groups = []
+                for group_key, group_value in raw_groups.items():
+                    row = dict(group_value or {})
+                    row.setdefault("key", group_key)
+                    groups.append(row)
+            else:
+                groups = [row for row in raw_groups if isinstance(row, dict)]
+            groups_by_key = {row.get("key"): row for row in groups if row.get("key")}
+            missing_groups = sorted(required_coverage_groups - set(groups_by_key))
+            if missing_groups:
+                errors.append("coverage_report 缺少必扫查询组：%s" % ", ".join(missing_groups))
+            for group_key in sorted(required_coverage_groups & set(groups_by_key)):
+                group = groups_by_key[group_key]
+                queries = [str(query).strip() for query in group.get("queries") or [] if str(query).strip()]
+                if group.get("status") != "completed":
+                    errors.append("coverage_report 查询组未完成：%s" % group_key)
+                if not queries:
+                    errors.append("coverage_report 查询组没有实际查询：%s" % group_key)
+                candidate_count = group.get("candidate_count")
+                if not isinstance(candidate_count, int) or candidate_count < 0:
+                    errors.append("coverage_report candidate_count 无效：%s" % group_key)
+                    continue
+                selected_ids = [str(item_id) for item_id in group.get("selected_ids") or [] if str(item_id)]
+                rejection_reasons = [str(reason) for reason in group.get("rejection_reasons") or [] if str(reason).strip()]
+                if candidate_count > 0 and not selected_ids and not rejection_reasons:
+                    errors.append("coverage_report 有候选但没有入选或淘汰记录：%s" % group_key)
+                unknown_ids = [item_id for item_id in selected_ids if item_id not in item_ids]
+                if unknown_ids:
+                    errors.append("coverage_report 引用了不存在的条目：%s=%s" % (group_key, ",".join(unknown_ids)))
+
+            pipeline = coverage.get("x_pipeline") or {}
+            required_pipeline_counts = (
+                "gate_queries",
+                "gate_cited_posts",
+                "public_index_queries",
+                "public_index_posts",
+                "browser_queries",
+                "browser_verified_posts",
+            )
+            for field in required_pipeline_counts:
+                value = pipeline.get(field)
+                if not isinstance(value, int) or value < 0:
+                    errors.append("coverage_report.x_pipeline 缺少有效计数：%s" % field)
+            print("[validate] coverage_groups=%d/%d" % (
+                len(required_coverage_groups & set(groups_by_key)), len(required_coverage_groups)
+            ))
+
+            if expanded_quality:
+                lab_pipeline = coverage.get("lab_pipeline") or {}
+                checked_labs = {
+                    str(lab).strip().lower()
+                    for lab in lab_pipeline.get("core_labs_checked") or []
+                    if str(lab).strip()
+                }
+                missing_labs = sorted(CORE_DOMESTIC_LABS - checked_labs)
+                if missing_labs:
+                    errors.append("coverage_report.lab_pipeline 缺少国内核心厂商：%s" % ", ".join(missing_labs))
+
+                raw_tracks = lab_pipeline.get("activity_tracks") or []
+                if isinstance(raw_tracks, dict):
+                    tracks = []
+                    for track_key, track_value in raw_tracks.items():
+                        row = dict(track_value or {})
+                        row.setdefault("key", track_key)
+                        tracks.append(row)
+                else:
+                    tracks = [row for row in raw_tracks if isinstance(row, dict)]
+                tracks_by_key = {row.get("key"): row for row in tracks if row.get("key")}
+                missing_tracks = sorted(LAB_ACTIVITY_TYPES - set(tracks_by_key))
+                if missing_tracks:
+                    errors.append("coverage_report.lab_pipeline 缺少活动轨道：%s" % ", ".join(missing_tracks))
+                for track_key in sorted(LAB_ACTIVITY_TYPES & set(tracks_by_key)):
+                    track = tracks_by_key[track_key]
+                    queries = [str(query).strip() for query in track.get("queries") or [] if str(query).strip()]
+                    candidate_count = track.get("candidate_count")
+                    selected_ids = [str(item_id) for item_id in track.get("selected_ids") or [] if str(item_id)]
+                    rejection_reasons = [str(reason) for reason in track.get("rejection_reasons") or [] if str(reason).strip()]
+                    if track.get("status") != "completed":
+                        errors.append("国内大厂活动轨道未完成：%s" % track_key)
+                    if not queries:
+                        errors.append("国内大厂活动轨道没有实际查询：%s" % track_key)
+                    if not isinstance(candidate_count, int) or candidate_count < 0:
+                        errors.append("国内大厂活动轨道 candidate_count 无效：%s" % track_key)
+                    elif candidate_count > 0 and not selected_ids and not rejection_reasons:
+                        errors.append("国内大厂活动轨道有候选但无入选/淘汰记录：%s" % track_key)
+                    unknown_ids = [item_id for item_id in selected_ids if item_id not in item_ids]
+                    if unknown_ids:
+                        errors.append("国内大厂活动轨道引用了不存在的条目：%s=%s" % (track_key, ",".join(unknown_ids)))
+
+                viewpoint_pipeline = coverage.get("viewpoint_pipeline") or {}
+                dynamic_candidates = viewpoint_pipeline.get("dynamic_candidates")
+                dynamic_selected_ids = [
+                    str(item_id) for item_id in viewpoint_pipeline.get("dynamic_selected_ids") or [] if str(item_id)
+                ]
+                if not isinstance(dynamic_candidates, int) or dynamic_candidates < 6:
+                    errors.append("coverage_report.viewpoint_pipeline 动态候选少于 6 条")
+                if len(dynamic_selected_ids) < 2:
+                    errors.append("coverage_report.viewpoint_pipeline 动态入选少于 2 条")
+                unknown_ids = [item_id for item_id in dynamic_selected_ids if item_id not in item_ids]
+                if unknown_ids:
+                    errors.append("动态 KOL 管道引用了不存在的条目：%s" % ",".join(unknown_ids))
+                topic_roles = [row for row in viewpoint_pipeline.get("topic_roles") or [] if isinstance(row, dict)]
+                complete_topics = 0
+                counterpoint_topics = 0
+                for row in topic_roles:
+                    roles = row.get("roles") or {}
+                    originators = [str(item_id) for item_id in roles.get("originator") or [] if str(item_id)]
+                    independent = [str(item_id) for item_id in roles.get("independent_evaluation") or [] if str(item_id)]
+                    counterpoints = [str(item_id) for item_id in roles.get("counterpoint") or [] if str(item_id)]
+                    if originators and independent:
+                        complete_topics += 1
+                    if counterpoints:
+                        counterpoint_topics += 1
+                    referenced = originators + independent + counterpoints
+                    unknown = [item_id for item_id in referenced if item_id not in item_ids]
+                    if unknown:
+                        errors.append("观点角色管道引用了不存在的条目：%s" % ",".join(unknown))
+                if complete_topics < 2:
+                    errors.append("至少 2 个重点话题需同时有首发者与独立评估")
+                if counterpoint_topics < 1:
+                    errors.append("至少 1 个重点话题需要反方/边界观点")
+
+        ages = []
+        invalid_date_items = []
+        for item in items:
+            age = parse_item_age(str(payload.get("date", "")), item.get("date"))
+            ages.append(age)
+            if age is None:
+                invalid_date_items.append(item.get("id", "(no-id)"))
+            elif age < 0:
+                quality_issue("条目日期晚于 digest 日期：%s" % item.get("id", "(no-id)"))
+        for item_id in invalid_date_items[:5]:
+            quality_issue("条目日期无效：%s" % item_id)
+
+        valid_ages = [age for age in ages if age is not None and age >= 0]
+        fresh_72h = sum(age <= 3 for age in valid_ages)
+        fresh_7d = sum(age <= 7 for age in valid_ages)
+        older_7d = sum(age > 7 for age in valid_ages)
+        older_30d = sum(age > 30 for age in valid_ages)
+        fresh_ratio = (fresh_7d / float(len(valid_ages))) if valid_ages else 0.0
+        background_ratio = (older_7d / float(len(valid_ages))) if valid_ages else 1.0
+        max_age = max(valid_ages) if valid_ages else -1
+        print("[validate] freshness_72h=%d freshness_7d=%d/%d (%.0f%%) older_7d=%d older_30d=%d max_age=%d" % (
+            fresh_72h, fresh_7d, len(valid_ages), fresh_ratio * 100, older_7d, older_30d, max_age
+        ))
+        if items and fresh_72h < 5:
+            quality_issue("72 小时内条目不足：%d；质量门槛为至少 5 条" % fresh_72h)
+        if items and fresh_ratio < 0.65:
+            quality_issue("近 7 天条目占比不足：%.0f%%；质量门槛为至少 65%%" % (fresh_ratio * 100))
+        if items and background_ratio > 0.20:
+            quality_issue("7 天外背景条目过多：%.0f%%；质量门槛为最多 20%%" % (background_ratio * 100))
+        if older_30d:
+            quality_issue("存在 %d 条超过 30 天的独立条目；旧资料只能进入新话题的背景说明" % older_30d)
+
+        for item, age in zip(items, ages):
+            if age is not None and age > 7:
+                if item.get("recency_role") != "background" or len(str(item.get("why_now") or "")) < 30:
+                    quality_issue("旧来源缺少 background/why_now：%s（%d 天）" % (item.get("id", "(no-id)"), age))
+            if strict_quality and not item.get("topic_cluster"):
+                errors.append("缺少 topic_cluster：%s" % item.get("id", "(no-id)"))
+
+        placeholder_items = []
+        generic_items = []
+        current_url_first = {}
+        current_duplicate_urls = []
+        for item in items:
+            blob = " ".join(str(item.get(k, "")) for k in ("title", "summary", "detail")).lower()
+            if any(term.lower() in blob for term in PLACEHOLDER_TERMS):
+                placeholder_items.append(item.get("id", "(no-id)"))
+            url = str(item.get("url") or "").strip()
+            if url and is_generic_index_url(url):
+                generic_items.append(item.get("id", "(no-id)"))
+            if url in current_url_first:
+                current_duplicate_urls.append((item.get("id", "(no-id)"), current_url_first[url]))
+            elif url:
+                current_url_first[url] = item.get("id", "(no-id)")
+        if placeholder_items:
+            quality_issue("监测/无结果占位条目不得进入 digest：%s" % ", ".join(placeholder_items[:8]))
+        if generic_items:
+            quality_issue("条目使用 profile/索引/主题页而非具体来源深链：%s" % ", ".join(generic_items[:8]))
+        if current_duplicate_urls:
+            quality_issue("同一期存在重复 URL：%s" % ", ".join("%s=%s" % pair for pair in current_duplicate_urls[:8]))
+
+        prior_payloads = load_recent_payloads(str(payload.get("date")), days=7)
+        prior_urls = {}
+        prior_titles = {}
+        for prior in prior_payloads:
+            for prior_item in prior.get("items", []):
+                if prior_item.get("url"):
+                    prior_urls.setdefault(str(prior_item["url"]), str(prior.get("date")))
+                title_key = normalize_title(prior_item.get("title"))
+                if title_key:
+                    prior_titles.setdefault(title_key, str(prior.get("date")))
+        repeated = []
+        for item in items:
+            repeat_ok = item.get("repeat_update") is True and len(str(item.get("new_evidence") or "")) >= 20
+            url = str(item.get("url") or "")
+            title_key = normalize_title(item.get("title"))
+            prior_date = prior_urls.get(url) or prior_titles.get(title_key)
+            if prior_date and not repeat_ok:
+                repeated.append("%s←%s" % (item.get("id", "(no-id)"), prior_date))
+        print("[validate] repeated_from_previous_7d=%d" % len(repeated))
+        if repeated:
+            quality_issue("近 7 期重复内容未声明实质更新：%s" % ", ".join(repeated[:8]))
+
+        kol_items = [item for item in items if item.get("dim") == "kol"]
+        lab_items = [item for item in items if item.get("dim") == "lab"]
+        verified_x_kol = [item for item in kol_items if any(is_concrete_x_evidence(url) for url in item_x_urls(item))]
+        discovery_only_kol = [item for item in kol_items if any(is_x_discovery_only(url) for url in item_x_urls(item)) and item not in verified_x_kol]
+        x_ratio = len(verified_x_kol) / float(len(kol_items)) if kol_items else 0.0
+        print("[validate] kol_verified_x_posts=%d/%d (%.0f%%) profile_or_replies=%d" % (
+            len(verified_x_kol), len(kol_items), x_ratio * 100, len(discovery_only_kol)
+        ))
+        if len(kol_items) < 4:
+            quality_issue("KOL 观点不足：%d；质量门槛为至少 4 条真实观点" % len(kol_items))
+        if x_ratio < 0.60:
+            quality_issue("KOL 具体 X status/article 占比不足：%d/%d；profile/with_replies 不计证据" % (len(verified_x_kol), len(kol_items)))
+        if discovery_only_kol:
+            quality_issue("KOL 条目只有 profile/with_replies 等导航页：%s" % ", ".join(item.get("id", "(no-id)") for item in discovery_only_kol))
+
+        if expanded_quality:
+            for item in lab_items:
+                if item.get("lab_activity_type") not in LAB_ACTIVITY_TYPES:
+                    errors.append("AI 大厂条目缺少有效 lab_activity_type：%s" % item.get("id", "(no-id)"))
+            topic_expansion_items = []
+            role_counts = {role: 0 for role in VIEWPOINT_ROLES}
+            for item in kol_items:
+                discovery_mode = item.get("discovery_mode")
+                viewpoint_role = item.get("viewpoint_role")
+                if discovery_mode not in KOL_DISCOVERY_MODES:
+                    errors.append("KOL 条目缺少有效 discovery_mode：%s" % item.get("id", "(no-id)"))
+                if viewpoint_role not in VIEWPOINT_ROLES:
+                    errors.append("KOL 条目缺少有效 viewpoint_role：%s" % item.get("id", "(no-id)"))
+                else:
+                    role_counts[viewpoint_role] += 1
+                if discovery_mode == "topic_expansion":
+                    topic_expansion_items.append(item)
+            if len(topic_expansion_items) < 2:
+                errors.append("按话题反向发现的 KOL 入选少于 2 条")
+            if role_counts["independent_evaluation"] < 1:
+                errors.append("KOL 观点缺少独立评估")
+            if role_counts["counterpoint"] < 1:
+                errors.append("KOL 观点缺少反方/边界观点")
+
+        for item in kol_items:
+            concrete = [url for url in item_x_urls(item) if is_concrete_x_evidence(url)]
+            content_type = item.get("content_type")
+            if content_type in {"x_status", "x_article"} and not concrete:
+                quality_issue("%s 标为 %s 但没有具体数字 id 的 X status/article" % (item.get("id", "(no-id)"), content_type))
+            if strict_quality and concrete:
+                evidence = item.get("evidence") or {}
+                provider = str(evidence.get("provider") or "").lower()
+                browser_verified = any(token in provider for token in ("browser", "chrome"))
+                scheduled_verified = any(token in provider for token in SCHEDULED_X_PROVIDER_TOKENS)
+                if coverage_quality:
+                    if not (browser_verified or scheduled_verified):
+                        errors.append("X 条目 provider 不是浏览器、公开索引或官方 API：%s" % item.get("id", "(no-id)"))
+                    verification_level = str(evidence.get("verification_level") or "")
+                    if browser_verified and verification_level != "direct_page":
+                        errors.append("浏览器 X 条目必须标记 verification_level=direct_page：%s" % item.get("id", "(no-id)"))
+                    if scheduled_verified and verification_level not in {"public_index", "direct_page", "official_api"}:
+                        errors.append("公开 X 条目 verification_level 无效：%s" % item.get("id", "(no-id)"))
+                    if len(str(evidence.get("excerpt") or "").strip()) < 20:
+                        errors.append("X 条目缺少可归属作者的正文摘录：%s" % item.get("id", "(no-id)"))
+                elif not browser_verified:
+                    errors.append("X 条目缺少浏览器核验 provider：%s" % item.get("id", "(no-id)"))
+                if not is_concrete_x_evidence(str(evidence.get("verified_url") or "")):
+                    errors.append("X 条目 evidence.verified_url 无效：%s" % item.get("id", "(no-id)"))
+                if evidence.get("direct") is not True or not evidence.get("verified_at") or not evidence.get("published_at"):
+                    errors.append("X 条目缺少 direct/verified_at/published_at：%s" % item.get("id", "(no-id)"))
+
+        item_by_id = {item.get("id"): item for item in items if item.get("id")}
+        for topic in payload.get("hot_topics_today", []):
+            related_items = [item_by_id[item_id] for item_id in topic.get("related", []) if item_id in item_by_id]
+            source_urls = {item.get("url") for item in related_items if item.get("url")}
+            related_ages = [parse_item_age(str(payload.get("date")), item.get("date")) for item in related_items]
+            if strict_quality and len(source_urls) < 2:
+                errors.append("热点缺少两条独立来源：%s" % topic.get("title", "(no-title)"))
+            if strict_quality and not any(age is not None and 0 <= age <= 7 for age in related_ages):
+                errors.append("热点没有近 7 天证据：%s" % topic.get("title", "(no-title)"))
 
         deep_items = [
-            item for item in payload.get("items", [])
+            item for item in items
             if item.get("depth") == "deep" or item.get("content_type") in DEEP_TYPES
         ]
-        short_deep = [
-            item for item in deep_items
-            if len(str(item.get("detail") or "")) < 500
-        ]
+        short_deep = [item for item in deep_items if len(str(item.get("detail") or "")) < 650]
         if deep_items:
             print("[validate] deep_items=%d short_detail=%d" % (len(deep_items), len(short_deep)))
         for item in short_deep[:5]:
-            warnings.append("深度/长文条目 detail 偏短：%s；请补充 key_points/examples/product_implications/limitations" % item.get("id", "(no-id)"))
+            warnings.append("深度/长文条目 detail 偏短：%s；目标至少 650 个中文字符" % item.get("id", "(no-id)"))
 
         radar_hits = [
-            item for item in payload.get("items", [])
+            item for item in items
             if item.get("content_type") in DEEP_TYPES
-            or any(domain in (item.get("url", "") + " " + " ".join(item.get("x_src") or [])) for domain in RESEARCH_DOMAINS)
+            or any(
+                domain in (item.get("url", "") + " " + " ".join(item.get("x_src") or [])).lower()
+                for domain in RESEARCH_DOMAINS
+            )
         ]
         print("[validate] research_radar_hits=%d" % len(radar_hits))
         if not radar_hits:
@@ -128,7 +566,7 @@ def validate_digest(date_value):
         anchors = active_industry_anchors()
         if "ai-finance" in anchors or "ai-crypto" in anchors:
             finance_oss = []
-            for item in payload.get("items", []):
+            for item in items:
                 if item.get("dim") != "oss":
                     continue
                 blob = " ".join(str(item.get(k, "")) for k in ("title", "summary", "detail", "why", "buzz")).lower()
@@ -142,7 +580,7 @@ def validate_digest(date_value):
     manifest = read_text(ROOT / "data" / "manifest.js")
     if 'latest: "%s"' % key not in manifest and '"%s"' % key not in manifest:
         warnings.append("manifest.js 未显式标记 latest=%s" % key)
-    if path.name not in "digest.js":
+    if path.name != "digest.js":
         warnings.append("digest 文件名异常")
 
     print("[validate] date=%s items=%d dimensions=%d hot_topics~=%d urls=%d" % (

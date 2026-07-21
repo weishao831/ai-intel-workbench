@@ -248,14 +248,36 @@
   .dim-ov{color:var(--text2);font-size:13px;line-height:1.72;margin:8px 0 20px;max-width:900px}
 
   .histlist{display:flex;flex-direction:column;gap:10px}
-  .hist{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;cursor:pointer;transition:.14s}
+  .archive-panel{display:flex;flex-direction:column;gap:14px}
+  .archive-toolbar{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+  .archive-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .archive-label{color:var(--muted);font-size:12px;font-weight:600;min-width:42px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.13s}
+  .chip:hover{border-color:var(--border2);color:var(--text);background:#fff}
+  .chip.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+  .archive-search{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:7px 11px;min-width:min(360px,100%);flex:1}
+  .archive-search:focus-within{border-color:var(--accent-line);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+  .archive-search .ic{width:15px;height:15px;color:var(--muted)}
+  .archive-search input{background:none;border:none;outline:none;color:var(--text);width:100%;font-size:13px;font-family:inherit}
+  .archive-meta{color:var(--faint);font-size:12px;margin-left:auto}
+  .hist{display:flex;align-items:flex-start;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;cursor:pointer;transition:.14s}
   .hist:hover{border-color:var(--border2);box-shadow:var(--shadow)}
   .hist.cur{border-color:var(--accent-line);background:var(--accent-soft)}
   .hist .hic{width:34px;height:34px;border-radius:8px;background:var(--surface2);display:grid;place-items:center;flex:none}
   .hist .hic .ic{width:17px;height:17px;color:var(--text2)}
+  .hist .hb{flex:1;min-width:0}
   .hist .hd{font-size:14.5px;font-weight:600}
   .hist .hc{color:var(--muted);font-size:12px;margin-top:1px}
+  .hist .hm{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .dim-mini{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:#fff;border-radius:7px;padding:2px 7px;color:var(--text2);font-size:11px;font-weight:600}
+  .dim-mini .d{width:6px;height:6px;border-radius:50%}
   .hist .go{margin-left:auto;color:var(--accent);font-size:12px;font-weight:500}
+  .pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+  .pager .page-state{color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .page-btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+  .page-btn:hover:not(:disabled){border-color:var(--border2);color:var(--text);box-shadow:0 1px 4px rgba(20,28,54,.08)}
+  .page-btn:disabled{opacity:.42;cursor:not-allowed}
 
   @media(max-width:880px){
     .sidebar{position:fixed;left:-240px;z-index:60;transition:.24s;box-shadow:var(--shadow-lg)}
@@ -265,6 +287,9 @@
     .menu-btn .ic{width:19px;height:19px}
     .content{padding:20px 16px 60px}
     .topbar{padding:11px 16px}
+    .archive-row{align-items:flex-start;flex-direction:column}
+    .archive-meta{margin-left:0}
+    .hist .go{display:none}
   }
 </style>
 </head>
@@ -353,7 +378,10 @@ var I18N={
     foot:"当前数据",data_dir:"本地工作台 · 数据沉淀于",items:"今日情报条目",dims:"覆盖维度",hot_topics:"跨维度热点",high_items:"高热条目",saved:"我的标记",
     mood:"加密市场情绪　",worth:"今日值得注意",cross:"跨维度共振 · 点击查看关联",related:"条关联",
     view_all:"查看全部",none:"当前筛选无结果",no_hot:"今日暂无聚合热点",data_missing:"未能加载数据，请确认 data/ 目录与本页同级。",not_found:"未找到",item_unit:"条",day_unit:"天",intel:"条情报",
-    current:"● 当前",switch:"切换 →",history_tip:"每天调研后会新增一个日期文件夹（<code>data/年/月/日/</code>）并在此归档。点击切换查看历史某天。",
+    current:"● 当前",switch:"切换 →",history_tip:"每天调研后会新增一个日期文件夹（<code>data/年/月/日/</code>）并在此归档。归档默认按最新日期在前展示，可按维度、热度或关键词缩小范围。",
+    history_filters:"归档筛选",dim_filter:"维度",heat_filter:"热度",archive_all_dims:"全部维度",archive_all_heat:"全部热度",
+    archive_search:"搜索日期 / 标题 / 摘要 / 标签",archive_loading:"正在加载归档索引…",archive_total:"全部归档",archive_match:"筛选结果",
+    archive_empty:"没有符合条件的归档",archive_page:"页",archive_prev:"上一页",archive_next:"下一页",archive_page_size:"每页",archive_item_match:"条匹配",
     mark_empty:"还没有标记。在任意卡片右上角点 ☆ 即可收藏，统一在这里查看。",
     mark_tip:"条标记（保存在浏览器本地，换设备不同步）。点击查看详情。",
     hot_note:"同一主题在多个维度同时出现，往往最值得注意。每天调研后，下方「近期高频」会自动统计最近 7 天反复出现的主题。",
@@ -371,7 +399,10 @@ var I18N={
     foot:"Current data",data_dir:"Local workbench · data stored in",items:"Intel items",dims:"Dimensions",hot_topics:"Cross-domain signals",high_items:"High-signal items",saved:"Saved items",
     mood:"Market mood  ",worth:"Signals Worth Watching",cross:"Cross-domain convergence · click to inspect related items",related:"related",
     view_all:"View all",none:"No results for this filter",no_hot:"No aggregated signals today",data_missing:"Could not load data. Confirm the data/ directory is next to this page.",not_found:"Could not find",item_unit:"items",day_unit:"days",intel:"intel items",
-    current:"● Current",switch:"Switch →",history_tip:"Each daily run creates a dated folder (<code>data/YYYY/MM/DD/</code>) and archives it here. Click to switch dates.",
+    current:"● Current",switch:"Switch →",history_tip:"Each daily run creates a dated folder (<code>data/YYYY/MM/DD/</code>) and archives it here. Archive is newest-first and can be narrowed by dimension, heat, or keyword.",
+    history_filters:"Archive filters",dim_filter:"Dimension",heat_filter:"Heat",archive_all_dims:"All dimensions",archive_all_heat:"All heat",
+    archive_search:"Search date / title / summary / tags",archive_loading:"Loading archive index...",archive_total:"All archive days",archive_match:"Filtered days",
+    archive_empty:"No archive days match these filters",archive_page:"Page",archive_prev:"Prev",archive_next:"Next",archive_page_size:"Per page",archive_item_match:"matched items",
     mark_empty:"No saved items yet. Click the star on any card to save it here.",
     mark_tip:"saved items (stored locally in this browser). Click to view details.",
     hot_note:"When the same signal appears across multiple dimensions, it is usually worth a closer look. After each run, the section below tracks themes that repeat across the latest 7 days.",
@@ -410,12 +441,17 @@ var DIM={
 function refreshDimNames(){["lab","kol","paper","oss","fin"].forEach(function(k){DIM[k].cn=T("dim_"+k);});}
 refreshDimNames();
 var MANIFEST=window.__MANIFEST__||{dates:[]};
-var state={date:MANIFEST.latest,view:"overview",q:"",heat:"all"};
+var state={date:MANIFEST.latest,view:"overview",q:"",heat:"all",historyDim:"all",historyHeat:"all",historyQ:"",historyPage:1,historyPageSize:6};
 var MK="ai_daily_marks_v2";
 var modalStack=[];
+var historyLoading=false,historyLoaded=false,historyCallbacks=[];
 
 function daily(d){var k=d||state.date,db=window.__DAILY__||{};return (UI_LANG==="en"&&(db[k+"#en"]))||db[k];}
+function baseDaily(d){return (window.__DAILY__||{})[d];}
 function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function attr(s){return esc(s).replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function dateRank(date){return Number(String(date||"").replace(/\D/g,""))||0;}
+function sortedDatesDesc(){return (MANIFEST.dates||[]).slice().sort(function(a,b){return dateRank(b.date)-dateRank(a.date);});}
 function getMarks(){try{return JSON.parse(localStorage.getItem(MK)||"{}")}catch(e){return{}}}
 function setMarks(m){localStorage.setItem(MK,JSON.stringify(m));}
 function mkKey(date,id){return date+"::"+id;}
@@ -583,7 +619,7 @@ function todayTags(d){
   return Object.keys(c).sort(function(a,b){return c[b]-c[a]}).slice(0,10).map(function(t){return '<span class="tag" style="margin:0 4px 4px 0;display:inline-block">'+esc(t)+' · '+c[t]+'</span>'}).join("");
 }
 function computeTrending(){
-  var dates=(MANIFEST.dates||[]).slice(0,7),seen={};
+  var dates=sortedDatesDesc().slice(0,7),seen={};
   dates.forEach(function(dd){var dy=daily(dd.date);if(!dy)return;var loc={};
     (dy.hot_topics_today||[]).forEach(function(ht){loc[ht.title]=true;});
     (dy.items||[]).forEach(function(it){(it.tags||[]).forEach(function(t){loc["#"+t]=true;});});
@@ -606,13 +642,121 @@ function renderMarks(){
   return h;
 }
 
+function ensureHistoryIndex(cb){
+  if(historyLoaded){cb&&cb();return;}
+  if(cb)historyCallbacks.push(cb);
+  if(historyLoading)return;
+  historyLoading=true;
+  var dates=sortedDatesDesc().map(function(dd){return dd.date;});
+  var i=0;
+  function done(){
+    historyLoading=false;
+    historyLoaded=true;
+    var calls=historyCallbacks.slice();
+    historyCallbacks=[];
+    calls.forEach(function(fn){fn&&fn();});
+  }
+  function next(){
+    if(i>=dates.length){done();return;}
+    var date=dates[i++];
+    if(baseDaily(date)){next();return;}
+    loadBaseDigest(date,next);
+  }
+  next();
+}
+function historyText(dd,dy){
+  var s=[dd.date,dd.label];
+  (dy.items||[]).forEach(function(it){
+    s.push(it.title,it.summary,it.detail,it.source,it.orig,(it.tags||[]).join(" "));
+  });
+  return s.join(" ").toLowerCase();
+}
+function historyRow(dd){
+  var dy=baseDaily(dd.date)||{items:[]},counts={},heatCounts={},items=dy.items||[];
+  items.forEach(function(it){counts[it.dim]=(counts[it.dim]||0)+1;heatCounts[it.heat]=(heatCounts[it.heat]||0)+1;});
+  var scoped=items.filter(function(it){
+    if(state.historyDim!=="all"&&it.dim!==state.historyDim)return false;
+    if(state.historyHeat!=="all"&&it.heat!==state.historyHeat)return false;
+    return true;
+  });
+  var filtered=scoped.filter(function(it){
+    if(state.historyQ){
+      var s=(it.title+" "+it.summary+" "+(it.detail||"")+" "+(it.source||"")+" "+(it.orig||"")+" "+(it.tags||[]).join(" ")).toLowerCase();
+      if(s.indexOf(state.historyQ.toLowerCase())<0)return false;
+    }
+    return true;
+  });
+  var dateHit=!state.historyQ||String(dd.date+" "+dd.label).toLowerCase().indexOf(state.historyQ.toLowerCase())>=0;
+  var matchCount=state.historyQ?(dateHit?(filtered.length||scoped.length):filtered.length):scoped.length;
+  return {meta:dd,data:dy,counts:counts,heatCounts:heatCounts,matchCount:matchCount,total:items.length||dd.count||0};
+}
+function historyRows(){
+  return sortedDatesDesc().map(historyRow).filter(function(r){
+    if(state.historyDim!=="all"&&!(r.counts[state.historyDim]>0))return false;
+    if(state.historyHeat!=="all"&&!(r.heatCounts[state.historyHeat]>0))return false;
+    if(state.historyQ){
+      var q=state.historyQ.toLowerCase();
+      var dateHit=String(r.meta.date+" "+r.meta.label).toLowerCase().indexOf(q)>=0;
+      if(!dateHit&&historyText(r.meta,r.data).indexOf(q)<0)return false;
+    }
+    return true;
+  });
+}
+function historyDimPills(counts){
+  return ["lab","kol","paper","oss","fin"].map(function(k){
+    var n=counts[k]||0;
+    if(!n)return "";
+    return '<span class="dim-mini"><span class="d" style="background:'+DIM[k].c+'"></span>'+DIM[k].cn+' · '+n+'</span>';
+  }).join("");
+}
+function historyChip(kind,value,label){
+  var current=kind==="dim"?state.historyDim:state.historyHeat;
+  var fn=kind==="dim"?"setHistoryDim":"setHistoryHeat";
+  return '<button class="chip'+(current===value?' on':'')+'" onclick="'+fn+'(\''+value+'\')">'+label+'</button>';
+}
+function historySizeChip(size){
+  return '<button class="chip'+(state.historyPageSize===size?' on':'')+'" onclick="setHistoryPageSize('+size+')">'+size+'</button>';
+}
+function historyControls(total){
+  var dimChips=historyChip("dim","all",T("archive_all_dims"))+["lab","kol","paper","oss","fin"].map(function(k){return historyChip("dim",k,DIM[k].cn);}).join("");
+  var heatChips=historyChip("heat","all",T("archive_all_heat"))+["high","rising","medium"].map(function(k){return historyChip("heat",k,heatCn(k));}).join("");
+  return '<div class="archive-toolbar">'+
+    '<div class="archive-row"><span class="archive-label">'+T("dim_filter")+'</span><div class="chips">'+dimChips+'</div><span class="archive-meta">'+T(state.historyDim==="all"&&state.historyHeat==="all"&&!state.historyQ?"archive_total":"archive_match")+' · '+total+'</span></div>'+
+    '<div class="archive-row"><span class="archive-label">'+T("heat_filter")+'</span><div class="chips">'+heatChips+'</div></div>'+
+    '<div class="archive-row"><label class="archive-search">'+ico('list')+'<input id="historyQ" value="'+attr(state.historyQ)+'" placeholder="'+T("archive_search")+'" oninput="setHistoryQ(this.value)"></label>'+
+      '<span class="archive-label" style="min-width:auto">'+T("archive_page_size")+'</span><div class="chips">'+[6,10,20].map(historySizeChip).join("")+'</div></div>'+
+  '</div>';
+}
+function renderHistoryPager(total,pages){
+  if(pages<=1)return "";
+  return '<div class="pager">'+
+    '<button class="page-btn" '+(state.historyPage<=1?'disabled':'')+' onclick="setHistoryPage('+(state.historyPage-1)+')">'+T("archive_prev")+'</button>'+
+    '<span class="page-state">'+T("archive_page")+' '+state.historyPage+' / '+pages+' · '+total+'</span>'+
+    '<button class="page-btn" '+(state.historyPage>=pages?'disabled':'')+' onclick="setHistoryPage('+(state.historyPage+1)+')">'+T("archive_next")+'</button>'+
+  '</div>';
+}
 function renderHistory(){
-  var h='<div class="note tip">'+T("history_tip")+'</div><div class="histlist">';
-  h+=(MANIFEST.dates||[]).map(function(dd){var cur=dd.date===state.date;
+  if(!historyLoaded){
+    ensureHistoryIndex(function(){if(state.view==="history")render();});
+    return '<div class="archive-panel"><div class="note tip">'+T("history_tip")+'</div><div class="empty">'+ico('refresh')+T("archive_loading")+'</div></div>';
+  }
+  var rows=historyRows(),total=rows.length,pages=Math.max(1,Math.ceil(total/state.historyPageSize));
+  if(state.historyPage>pages)state.historyPage=pages;
+  if(state.historyPage<1)state.historyPage=1;
+  var start=(state.historyPage-1)*state.historyPageSize;
+  var pageRows=rows.slice(start,start+state.historyPageSize);
+  var h='<div class="archive-panel"><div class="note tip">'+T("history_tip")+'</div>'+historyControls(total);
+  if(!pageRows.length){
+    h+='<div class="empty">'+ico('cal')+T("archive_empty")+'</div></div>';
+    return h;
+  }
+  h+='<div class="histlist">';
+  h+=pageRows.map(function(r){var dd=r.meta,cur=dd.date===state.date;
     return '<div class="hist'+(cur?' cur':'')+'" onclick="switchDate(\''+dd.date+'\')"><div class="hic">'+ico('doc')+'</div>'+
-      '<div><div class="hd">'+esc(dd.label)+'</div><div class="hc">'+esc(dd.date)+' · '+(dd.count||"-")+' '+T("intel")+'</div></div>'+
+      '<div class="hb"><div class="hd">'+esc(dd.label)+'</div><div class="hc">'+esc(dd.date)+' · '+(r.total||"-")+' '+T("intel")+' · '+r.matchCount+' '+T("archive_item_match")+'</div>'+
+      '<div class="hm">'+historyDimPills(r.counts)+'</div></div>'+
       '<div class="go">'+(cur?T("current"):T("switch"))+'</div></div>';
-  }).join("")+'</div>';
+  }).join("")+'</div>'+renderHistoryPager(total,pages)+'</div>';
   return h;
 }
 function switchDate(date){loadDigest(date,function(){state.date=date;state.view="overview";window.scrollTo(0,0);render();});}
@@ -736,6 +880,17 @@ function hotModalHTML(i,hasBack){
 /* ---------- 交互 ---------- */
 function onSearch(v){state.q=v;if(["overview","hot","marks"].indexOf(state.view)>=0||DIM[state.view])render();}
 function setHeat(h){state.heat=h;document.querySelectorAll("#seg button").forEach(function(b){b.classList.toggle("on",b.dataset.h===h);});render();}
+function setHistoryDim(v){state.historyDim=v;state.historyPage=1;render();}
+function setHistoryHeat(v){state.historyHeat=v;state.historyPage=1;render();}
+function setHistoryPage(p){state.historyPage=p;window.scrollTo(0,0);render();}
+function setHistoryPageSize(n){state.historyPageSize=n;state.historyPage=1;render();}
+function setHistoryQ(v){
+  state.historyQ=v;
+  state.historyPage=1;
+  render();
+  var q=document.getElementById("historyQ");
+  if(q){q.focus();try{q.setSelectionRange(q.value.length,q.value.length);}catch(e){}}
+}
 
 /* ---------- 关于页 ---------- */
 function renderAbout(){

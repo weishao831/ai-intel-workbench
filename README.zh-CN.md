@@ -16,9 +16,13 @@
 
 > 开源默认不内置任何个人 webhook、cookie、token 或账号态。X/Twitter 登录态、API Key、推送机器人都由用户本地自行配置。
 
-> 默认配置已内置 `config/kol.yaml` 作为初始 KOL 池，共 59 人，覆盖 AI 研究者、大厂负责人/研究员、AI 工程与 Agent、开源与模型、评测安全、AI x Crypto 和中文 AI 圈。你可以直接用它启动，也可以按自己的领域增删。
+> 默认配置已内置 `config/kol.yaml` 作为初始 KOL 池，共 69 人，覆盖 AI 研究者、大厂负责人/研究员、企业 AI 与组织工作、AI 工程与 Agent、开源与模型、评测安全、AI x Crypto 和中文 AI 圈。固定池只是监听起点，每日还会按当天话题反向发现新人物。
 
-> 2026-07-09 起新增 `config/research_radar.yaml`：每日调研会优先扫描研究员 X Article / 长文、Anthropic Research、OpenAI Research / Alignment、DeepSeek、Kimi/Moonshot、Z.ai/智谱、Qwen 等官方研究页、模型卡和技术报告，避免只靠普通新闻或 GitHub Trending 漏掉高价值研究。
+> 2026-07-21 起，`config/research_radar.yaml` 每日必扫 Qwen、DeepSeek、Kimi/Moonshot、Z.ai/GLM、ByteDance Seed/豆包、Tencent Hunyuan、Baidu ERNIE 和 MiniMax，并把模型发布、套餐/限额/产品上线、论文/技术研究分成三条独立扫描轨道。
+
+> 2026-07-20 起新增 `config/conversation_radar.yaml`：先发现最近 72 小时/7 天里正在升温的讨论，再映射到五个展示维度。Gate CLI 只作候选发现，profile/with_replies 不再算观点，具体 X 帖必须经浏览器打开核验。
+
+> 2026-07-21 起扩展为八组强制热点覆盖：在原有社媒热点、额度/订阅、国产模型和 X 观点之外，增加国内大厂模型、产品运营、论文研究和动态 KOL 观点。重点话题至少补齐首发者、独立评估和反方中的必要角色。
 
 ---
 
@@ -35,6 +39,7 @@ ai-intel-workbench/
 │   ├── sources.yaml                       # 信源配置
 │   ├── keywords.yaml                      # 搜索词与噪音过滤
 │   ├── kol.yaml                           # KOL 名单
+│   ├── conversation_radar.yaml            # 近期话题发现、证据与新鲜度门槛
 │   ├── research_radar.yaml                # 研究员长文/官方研究/国产模型/金融量化 Agent 雷达
 │   ├── push.yaml                          # Lark/飞书等机器人配置
 │   ├── runtime.yaml                       # 本地端口、agent 命令、定时配置
@@ -48,6 +53,7 @@ ai-intel-workbench/
 │   ├── init.py                            # 初始化向导
 │   ├── run_daily.py                       # 每日运行入口
 │   ├── validate_digest.py                 # digest 校验
+│   ├── validate_x_candidates.py            # Gate CLI X 候选证据校验
 │   ├── serve.py                           # 本地静态服务
 │   ├── push_lark.py                       # Lark/飞书推送
 │   └── install_schedule.py                # launchd / cron 定时任务
@@ -183,13 +189,16 @@ python3 scripts/run_daily.py --date today --language en
 
 ## 研究雷达与长文详情
 
-普通热点搜索容易漏掉两类内容：一类是 Anthropic / OpenAI 研究员发在 X Article 或个人账号里的长文，另一类是 DeepSeek、Kimi、智谱等国产实验室发在 Hugging Face / GitHub / 项目页里的模型卡和技术报告。
+固定信源巡检容易漏掉跨人物、跨公司的新议题。工作流先运行 `config/conversation_radar.yaml`，从最近讨论中发现话题，再运行研究雷达和五维度采编。默认战略镜头包括“AI 如何进入组织 / AI B 端”和“AGI 临近 / Frontier AI”。
+
+普通热点搜索还容易漏掉两类内容：一类是研究员发在 X Article 或个人账号里的长文，另一类是 DeepSeek、Kimi、智谱等实验室发在 Hugging Face / GitHub / 项目页里的模型卡和技术报告。
 
 为了解决这个问题，工作流新增 `config/research_radar.yaml`：
 
 - `researcher_longform_watchlist`：研究员长文/X Article，例如 Anthropic Claude Code 相关研究员。
 - `lab_research_watchlist`：Anthropic Research、OpenAI Research、OpenAI Alignment、Google DeepMind Research。
-- `chinese_frontier_lab_watchlist`：DeepSeek、Kimi/Moonshot、Z.ai/GLM、Qwen。
+- `chinese_frontier_lab_watchlist`：每日必扫 8 家国内核心厂商，并轮询 StepFun、Huawei Pangu、InternLM、Meituan LongCat、Xiaomi MiMo 和 InclusionAI。
+- `domestic_lab_scan_policy`：将 `model_release`、`product_ops`、`research` 作为三条独立轨道。
 - `open_source_finance_quant_watchlist`：金融 Agent、量化 Agent、AI 投研、回测/交易所/券商接口类开源项目。
 
 长文或技术报告入选时，应设置：
@@ -219,27 +228,29 @@ python3 scripts/run_daily.py --date today --language en
 
 开源版不默认依赖某个用户的 Chrome 登录态。
 
-KOL 观点维度采用 X-first：优先从 `config/kol.yaml` 的 handle 出发，检索公开 `x.com/.../status/...`、公开 profile、已配置 X provider 和 Gate-News `news_feed_search_x`，再 fallback 到 newsletter / blog / 媒体聚合。校验脚本会输出 `kol_x_sources`，用于发现 KOL 维度是否又退回二手来源。
+KOL 观点维度采用 X-first：优先从 `config/kol.yaml` 与当天话题发现的新人物出发，用公开搜索和 Gate CLI `news feed search-x` 找到候选。Gate 无 `cited_tweets/items` 时立即改用 `site:x.com` 公开索引寻找具体原帖，再 fallback 到 newsletter / blog / 媒体聚合。浏览器只在用户明确发起的交互式运行中做少量最终核验，不用于定时批量采集。
+
+Gate CLI 只负责候选发现：输出必须先通过 `python3 scripts/validate_x_candidates.py <result.json>`。交互运行用浏览器核对具体原帖；定时运行也可采用公开索引中同时可见作者、日期和正文摘录的具体 `x.com/<handle>/status/<数字 id>` 或 X Article。`profile`、`with_replies`、搜索页和主页只用于导航，不是观点，也不计入 X 来源比例。`validate_digest.py` 会输出热点覆盖、新鲜度、具体 X 比例和过去 7 天重复情况。
 
 默认 provider：
 
 - 公共网页搜索发现 URL
 - 官方博客 / arXiv / GitHub / HuggingFace / 媒体源
 - 公开 X status 页面
-- 公开 X profile 页面
+- 公开 X profile 页面（仅用于发现帖子，不作为观点证据）
 
 可选 provider：
 
-- 用户本地 Chrome/浏览器扩展，复用用户自己的登录态
+- 用户本地 Chrome/浏览器扩展，复用用户自己的登录态，仅用于用户明确发起的低频只读核验
 - X API 或第三方数据 API
-- Gate-News MCP，尤其是 `news_feed_search_x`，用于 X/Twitter 讨论聚合和可用时的推文级证据
+- Gate CLI `news feed search-x`，用于候选发现；推文级证据仍需本地校验脚本和浏览器复核
 - 用户导出的 CSV/JSON/bookmarks
 
 安全原则：
 
 - 不读取、不导出、不提交 cookie / localStorage / session token。
 - 不关注、不点赞、不发帖、不私信、不绕过 CAPTCHA 或安全拦截。
-- 不承诺“防封”；只做低频、只读、用户自带凭证的本地采集。
+- 不承诺“防封”；定时任务不脚本化访问 X 网站，只做低频、只读、用户明确触发的本地核验；遇到登录墙、验证码或安全拦截立即停止。
 
 详见 `skills/daily-intelligence-workbench/references/source-providers.md`。
 
@@ -274,11 +285,13 @@ python3 scripts/run_daily.py --date today --sample
 export DAILY_INTEL_LARK_WEBHOOK="https://open.larksuite.com/open-apis/bot/v2/hook/xxx"
 python3 scripts/run_daily.py --date today --push
 
-# 或单独推送某天
-python3 scripts/push_lark.py "https://open.larksuite.com/open-apis/bot/v2/hook/xxx" 2026/06/29
+# 或单独推送某天（使用 push.yaml 选定的主机器人）
+python3 scripts/push_lark.py 2026/06/29
 ```
 
-也可以在本机 `config/secrets.env` 或环境变量中配置多个机器人，真实 webhook 不进仓库：
+`primary_only` 下默认拒绝命令行 webhook，防止定时任务绕过白名单。只有明确的手动一次性操作才可使用 `--allow-target-override`。
+
+也可以在本机 `config/secrets.env` 或环境变量中保留多个机器人，真实 webhook 不进仓库。当 `config/push.yaml` 使用 `target_policy: primary_only` 时，日常任务只会发送 `primary_target_key` 指定的主机器人，编号机器人不会被自动发送：
 
 ```bash
 DAILY_INTEL_LARK_WEBHOOK_1=https://open.larksuite.com/open-apis/bot/v2/hook/xxx
@@ -414,7 +427,7 @@ skills/daily-intelligence-workbench/references/data-schema.md
 - [x] Claude Code / Codex skill
 - [x] 本地 run / validate / serve 脚本
 - [x] macOS launchd / Linux cron 定时任务
-- [x] 默认 55 人 KOL 池
+- [x] 默认 69 人 KOL 池 + 话题反向发现
 - [x] KOL 维度 X-first 校验
 - [ ] 完整公共网页采集器
 - [ ] Chrome provider 示例
