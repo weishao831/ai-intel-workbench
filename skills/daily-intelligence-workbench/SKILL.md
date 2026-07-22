@@ -1,6 +1,6 @@
 ---
 name: daily-intelligence-workbench
-version: 0.4.0
+version: 0.5.0
 description: This skill should be used when the user asks to run daily AI intelligence, generate today's AI news digest, find recent important AI discussions, improve stale or low-signal daily news, initialize or configure the daily intelligence workbench, set up a visual local AI intelligence dashboard, install or create a daily schedule, configure X/Twitter collection, or push the daily digest to Lark/Feishu.
 ---
 
@@ -24,7 +24,7 @@ Translate the request into this decision set:
 4. Schedule time: infer from the request, otherwise use `08:30`.
 5. Agent execution mode: if the user wants the agent itself to run daily and the current agent host has native recurring tasks/automations, create that agent-native daily task. Otherwise install the local OS schedule with `scripts/install_schedule.py`.
 
-For agent-native schedules, the recurring task should open this repository, read this skill, run the topic-discovery and evidence-verification procedure below, write canonical JSON with `quality_version: 4`, write it with `python3 scripts/run_daily.py --date today --from-json <path> --publish-on-valid`, and push only after validation succeeds. Do not store secrets in the task definition.
+For agent-native schedules, the recurring task should open this repository, read this skill, initialize an auditable `research_trace.json`, run the topic-discovery and evidence-verification procedure below, write canonical JSON with `quality_version: 5`, write it with `python3 scripts/run_daily.py --date today --from-json <path> --publish-on-valid`, and push only after both trace and digest validation succeed. Do not store secrets in the task definition.
 
 For local OS schedules, run:
 
@@ -47,10 +47,12 @@ Use the second command only when push is configured. After setup, report the exa
    - Use `--anchors ai-crypto,ai-finance` or another comma-separated list for non-interactive setup.
    - Use `--language zh`, `--language en`, or `--language bilingual` to choose digest output language.
 3. Generate or validate a daily digest:
+   - `python3 scripts/research_trace.py init --date today --mode scheduled`
    - `python3 scripts/run_daily.py --date today`
    - If an agent command is configured, the script creates a research prompt and invokes that command.
    - If no agent command is configured, the script writes a handoff prompt under `.daily-intel/runs/<date>/research_prompt.md`.
-4. Validate the generated output:
+4. Finalize query evidence and validate the generated output:
+   - `python3 scripts/research_trace.py finalize --date today`
    - `python3 scripts/validate_digest.py --date latest`
 5. Start the local dashboard:
    - `python3 scripts/serve.py --port 4318`
@@ -70,10 +72,10 @@ Treat X/Twitter collection as a provider, not a hard dependency.
 - Never inspect, copy, export, or store cookies, session storage, passwords, or tokens.
 - Do not describe the workflow as "anti-ban" or guaranteed to avoid rate limits. Prefer "low-frequency, read-only, user-owned provider".
 - Record provider limitations in digest notes when a source could not be verified directly.
-- Scheduled or unattended runs must not script the X website, automate X search, auto-scroll, or batch-read a logged-in session. Use public web search, Gate CLI, or an official API for scheduled discovery.
+- Scheduled runs may use the user's locally configured browser only in `scheduled_limited_readonly` mode: at most six low-frequency X searches, first viewport only, no scrolling, no batch profile reads, and no likes, follows, reposts, posts, or messages. X can remain on a loading shell after `domcontentloaded`; wait for the search timeline/article or up to three additional seconds before declaring the result empty. Stop on any login wall, CAPTCHA, or challenge.
 - Gate CLI returning a fluent summary with zero cited posts is a provider failure, not evidence that X has no viewpoints. Immediately fall back to public `site:x.com` discovery for concrete status/article URLs.
-- Scheduled runs may accept a concrete X status/article found in a public web index when the result exposes the author, published date, and attributable text excerpt. Record `provider: public-web-index` and `verification_level: public_index`; do not describe it as browser-verified.
-- Browser verification is interactive-only: when the user explicitly starts a run, open only a small number of final candidates, read visible author/date/text, and stop immediately on login walls, CAPTCHA, or safety interstitials.
+- Scheduled runs may accept a concrete X status/article found in a public web index when the result exposes the author, published date, and attributable text excerpt. Record `provider: public-web-index` and `verification_level: public_index`; do not describe it as browser-verified. Do not put X-only operators such as `since:` or `filter:` into ordinary web-search queries.
+- In limited scheduled-browser mode, save normalized first-viewport results as evidence and record `provider: x-browser`, `verification_level: direct_page`. Interactive runs may additionally open a small number of final candidate posts.
 
 For detailed provider strategy, read `references/source-providers.md`.
 
@@ -86,7 +88,7 @@ Write each daily output to `data/YYYY/MM/DD/digest.js` and update `data/manifest
 - `hot_topics_today`: cross-dimensional topics
 - `items`: structured intelligence entries
 - Optional: `kol_list`, `practice_list`, `market_mood`
-- For `quality_version: 4`: `coverage_report` with eight mandatory query groups, separate domestic-lab model/product/research tracks, dynamic KOL viewpoint roles, and X provider fallback counts.
+- For `quality_version: 5`: `coverage_report` with eight mandatory query groups, `run_ids`, `trace_path`, separate domestic-lab model/product/research tracks, dynamic KOL viewpoint roles, and X provider counts derived from trace artifacts.
 
 Honor `config/runtime.yaml` `output_language` when creating user-facing fields. Supported values are:
 
@@ -100,7 +102,7 @@ For the complete schema and validation expectations, read `references/data-schem
 
 When no structured JSON has been provided, run the research loop manually in the current agent:
 
-1. Read `config/industry.yaml`, `config/sources.yaml`, `config/keywords.yaml`, `config/kol.yaml`, `config/conversation_radar.yaml`, and `config/research_radar.yaml`.
+1. Read `config/industry.yaml`, `config/sources.yaml`, `config/keywords.yaml`, `config/kol.yaml`, `config/conversation_radar.yaml`, `config/research_radar.yaml`, and `config/runtime.yaml`. Run `python3 scripts/research_trace.py init --date YYYY-MM-DD --mode scheduled` before searching. Save every raw or normalized query result under the run's `evidence/` directory and register it with `research_trace.py record`; a query without an artifact and run id did not happen.
 2. Run the conversation-radar pass before checking fixed sources or filling dimensions:
    - Search broad recent debates first, using the current date plus 24-hour, 72-hour, and 7-day windows.
    - Complete all eight `mandatory_pulse` groups before strategic lenses: community hotspots, access/quota/subscription changes, Chinese frontier-model launches, X viewpoints, domestic-lab models, domestic-lab product operations, domestic-lab research, and dynamic KOL viewpoints.
@@ -116,14 +118,15 @@ When no structured JSON has been provided, run the research loop manually in the
    - Open-source finance/quant agents: discover from X discussion plus GitHub topics, not GitHub stars alone.
 4. Use the full KOL list as a watch pool, then expand from each emerging topic's exact model name, article title, coined term, evaluator, and counterargument. Select 4-10 actual recent viewpoints; the static list must not cap discovery.
 5. Verify X evidence under the run mode:
-   - Use public search and Gate CLI `news feed search-x` to discover candidates. Gate CLI is discovery only.
+   - Run `gate-cli preflight --format json`, then execute at least three Gate CLI `news feed search-x` queries and retain their raw JSON. Gate CLI is discovery only.
    - Save each `search-x --format json` result and run `python3 scripts/validate_x_candidates.py <result.json>`. Discard the entire synthesized result when the validator fails, even if `summary` or `content` is non-empty.
    - When Gate validation fails because there are no cited posts, continue with public web search using the emerging topic term plus `site:x.com`. Do not stop the KOL track at the provider failure.
-   - In a user-initiated interactive run only, open a small number of final X candidates in a browser. Accept only a concrete `x.com/<handle>/status/<digits>` or `x.com/i/article/<digits>` URL with visible author, timestamp, and post/article evidence; record `verification_level: direct_page`.
-   - In scheduled or unattended runs, do not automate the X website or reuse a logged-in browser. A concrete X post may still count when a public web index exposes its author, date, and attributable excerpt; record `provider: public-web-index`, `verification_level: public_index`, and the excerpt. A URL without attributable post text does not count.
+   - Ordinary web search must not use `since:` or `filter:`. Those are X-site operators, not web-search recency filters.
+   - If the public index returns only trending/profile pages and `config/runtime.yaml` enables scheduled read-only X, run at most six X-site searches with at least ten seconds between them. Read the first viewport only, retain at most eight results per query, and do not scroll or perform any account action. If the first snapshot is only Loading, wait for the search timeline/article or up to three seconds and take one more snapshot before marking it empty.
+   - Accept only a concrete `x.com/<handle>/status/<digits>` or `x.com/i/article/<digits>` URL with visible author, timestamp, and attributable text; record `provider: x-browser`, `verification_level: direct_page`. A URL without attributable post text does not count.
    - Treat profile, `with_replies`, search, and home URLs as navigation aids only. Never publish them as digest items or count them as X evidence.
    - When an X Article body is login-gated, preserve the X post/article URL and use an author-owned blog, Substack, or official mirror for readable body evidence; never bypass the login wall.
-6. Target at least 60% of KOL-view items with verified concrete X post/article evidence and at least four KOL-view items total. Select at least two `discovery_mode: topic_expansion` viewpoints. Across major topics, require at least two originator + independent-evaluation pairs and at least one counterpoint. Record `viewpoint_role` as `originator`, `independent_evaluation`, `counterpoint`, or `context`. If this cannot be reached, do not manufacture monitoring placeholders. Leave the dimension underfilled, document the failure, and let validation fail visibly.
+6. Target at least 60% of KOL-view items with verified concrete X post/article evidence and at least four KOL-view items total. Select at least two `discovery_mode: topic_expansion` viewpoints. Across major topics, require at least two originator + independent-evaluation pairs and at least one counterpoint. Record `viewpoint_role` as `originator`, `independent_evaluation`, `counterpoint`, or `context`. If this cannot be reached, do not manufacture monitoring placeholders. Let validation fail visibly, but still retain fully researched lab, paper, open-source, and finance items; never replace the entire digest with `items: []` because X failed.
 7. Build five presentation tracks: AI labs, KOL views, papers, open source, and AI x finance. Map each selected item back to a discovered topic cluster.
 8. Enforce freshness before editorial polish:
    - Target at least 65% of items published within 7 days and at least five items within 72 hours.
@@ -134,10 +137,11 @@ When no structured JSON has been provided, run the research loop manually in the
 9. Prefer primary sources: official articles, research pages, arXiv, GitHub releases, Hugging Face model cards, project docs, concrete X posts/articles, and then reputable media.
 10. Filter aggressively: remove marketing, duplicated reposts, job posts, unverifiable claims, stale filler, source-monitoring notes, and items included only to fill a dimension. Do not drop a high-signal recent researcher article merely because it is not viral yet.
 11. For longform or research items, set `content_type` and usually `depth: deep`. Include `detail`, `key_points`, `examples`, `product_implications`, and `limitations` so the dashboard is useful without opening the source.
-12. Write a temporary canonical JSON file matching `references/data-schema.md`. Set root `quality_version` to `4`, include `coverage_report`, and record item-level `recency_role`, `topic_cluster`, and `evidence` metadata. Lab items require `lab_activity_type`; KOL items require `discovery_mode` and `viewpoint_role`. `coverage_report.lab_pipeline` must name all eight core labs and all three activity tracks; `coverage_report.viewpoint_pipeline` must record dynamic candidates, selections, and topic roles.
-13. Convert it into dashboard format:
+12. Finalize the trace with `python3 scripts/research_trace.py finalize --date YYYY-MM-DD`. It must contain all eight query groups, at least three actual Gate X runs, the required fallback runs when Gate has fewer than four cited posts, and 24 lab/track checks (eight core labs times three tracks).
+13. Write a temporary canonical JSON file matching `references/data-schema.md`. Set root `quality_version` to `5`, include `coverage_report.trace_path`, and add trace-backed `run_ids` to every query group. Record item-level `recency_role`, `topic_cluster`, and `evidence` metadata. Lab items require `lab_activity_type`; KOL items require `discovery_mode` and `viewpoint_role`.
+14. Convert it into dashboard format:
    - `python3 scripts/run_daily.py --date YYYY-MM-DD --from-json /path/to/digest.json --publish-on-valid`
-14. Validate and serve locally. Do not push when the quality validator reports an error.
+15. Validate and serve locally. Do not push when the trace or quality validator reports an error.
 
 ## Scheduling
 
@@ -156,4 +160,5 @@ Push only after the user configures `config/push.yaml` or passes a webhook overr
 - `config/conversation_radar.yaml` - Topic discovery, freshness, evidence, and anti-placeholder quality policy.
 - `config/research_radar.yaml` - Researcher longform, lab research, Chinese frontier lab, and finance/quant agent radar.
 - `scripts/validate_x_candidates.py` - Reject Gate CLI summaries without concrete tweet/article evidence before browser verification.
+- `scripts/research_trace.py` - Record and verify query-level source runs and raw evidence.
 - `docs/调研方法论与Loop设计.md` - Product and research methodology.
