@@ -111,8 +111,8 @@ mandatory_pulse:
     dynamic_kol_views:
       purpose: 从当天话题反向找新作者，弥补固定 KOL 名单滞后
       queries:
-        - 'site:x.com/status AI model tested benchmark critique developer reaction recent'
-        - 'site:x.com/status AI 新模型 实测 质疑 反方 开发者 观点'
+        - 'site:x.com AI model tested benchmark critique developer reaction recent'
+        - 'site:x.com AI 新模型 实测 质疑 反方 开发者 观点'
       watch_for:
         - 话题首发者、独立实测/评估者、质疑/反方三种角色
         - 非固定名单但帖子有原始数据、可复现体验或鲜明论证的作者
@@ -181,19 +181,23 @@ source_policy:
 
   x_fallback_rule: >
     Gate CLI 没有 cited_tweets/items 时，不能结束 X 采集。应立即改用公开网页搜索，
-    用热点专有词和 site:x.com 找到具体 status/article。定时运行可采用公开索引中可见的
+    用热点专有词和 site:x.com 找到具体 status/article。公开网页搜索不能使用 since:、
+    filter: 等 X 站内操作符。定时运行可采用公开索引中可见的
     作者、日期、正文摘录，并标记 provider=public-web-index、verification_level=public_index；
-    Gate CLI 的无引用总结本身仍不得作为观点。用户主动运行时，再用浏览器低频核验少量
-    最终候选，标记 verification_level=direct_page。
+    Gate CLI 的无引用总结本身仍不得作为观点。若公开索引只返回 trending/profile，
+    进入受限浏览器降级链路。
 
   x_evidence_rule: >
     profile、with_replies、search、home 页面只用于寻找帖子，不是观点证据，
     不得写成 digest item，不得计入 KOL X 来源比例。
 
   browser_safety_rule: >
-    定时或无人值守运行不得脚本化打开、搜索、滚动或批量读取 X 网站，也不得复用
-    登录态做自动抓取。只有用户明确发起的交互式运行，才允许低频、只读地打开少量
-    最终候选做核验；遇到登录墙、验证码或安全拦截立即停止，不得绕过。
+    工作日定时任务允许使用本机已登录浏览器做最多 6 次低频、只读的 X 站内搜索，
+    每次只读取首屏最多 8 条结果，不滚动，不批量访问 profile，不点赞、关注、转发、
+    发帖或发送消息，查询间隔至少 10 秒。X 在 domcontentloaded 后仍可能显示 Loading；
+    应等待 Search timeline/article 出现，最多补等 3 秒后再判定空结果。遇到登录墙、
+    验证码或安全挑战立即停止。
+    交互式运行可少量打开最终候选的具体 status/article 核验正文。
 
 freshness_policy:
   fresh_signal_hours: 72
