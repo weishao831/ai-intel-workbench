@@ -57,7 +57,10 @@ Design implications:
 - In scheduled runs, a public index result may count as X evidence only when it includes a concrete URL, author, date, and text excerpt. Mark it `verification_level=public_index`; never label it browser-verified.
 - If all providers return only aggregate summaries, keep the aggregate in the coverage report as a rejected candidate, not as a digest viewpoint.
 - Keep Chrome login-state access optional and local; it is for explicit interactive spot checks, not unattended collection.
-- Do not script the X website, automate X search, auto-scroll, batch-read a logged-in session, or attempt to circumvent rate limits. Use public web search, Gate CLI, or an official API for scheduled discovery.
+- When `config/runtime.yaml` enables `scheduled_limited_readonly`, a scheduled run may perform at most six low-frequency X searches through the user's local browser. Read the first viewport only, retain at most eight results, never scroll or perform account actions, and stop on any login wall, CAPTCHA, or challenge.
+- Do not describe this as ban-proof or anti-ban. It is a small, read-only, user-owned access pattern with no guarantee from X.
+- Do not use X-only syntax such as `since:` or `filter:` in ordinary web-search queries. Use native recency/domain filters there; reserve X operators for X's own search box.
+- Persist every Gate, public-index, and browser query as a trace artifact. A provider count without a matching `research_trace.json` run is invalid.
 - Avoid any promise of "anti-ban" behavior. Use low-frequency, read-only, user-owned access and graceful fallbacks. Stop on login walls, CAPTCHA, or safety interstitials.
 
 ### Browser verification checklist
