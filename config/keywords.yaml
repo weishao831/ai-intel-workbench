@@ -5,8 +5,8 @@
 # ============================================================
 
 meta:
-  version: 5
-  updated: 2026-07-21
+  version: 6
+  updated: 2026-07-22
   date_rule: 搜索时由运行任务注入当天日期和最近 72 小时/7 天窗口，不在配置中写死月份。
 
 # 搜索时优先拼接的英文关键词（research-analyst 用英文搜，结果整理为中文）
@@ -36,7 +36,7 @@ must_run_queries:
     - 'Qwen3.8 official preview open weights Token Plan developer reaction'
     - 'site:x.com/Alibaba_Qwen/status Qwen3.8'
     - 'Kimi K3 Moonshot official launch developer reaction'
-    - 'site:x.com Kimi-K3 since:{date_minus_7d}'
+    - 'site:x.com Kimi K3 developer reaction evaluation'
     - '国产大模型 新模型 发布 Kimi DeepSeek Qwen GLM recent'
   domestic_lab_product_ops:
     - 'Qwen Kimi DeepSeek GLM Seed Hunyuan ERNIE MiniMax pricing subscription quota capacity product update'
@@ -48,9 +48,9 @@ must_run_queries:
     - 'site:github.com/minimax-ai latest model research'
     - 'site:github.com/QwenLM OR site:huggingface.co/Qwen latest technical report'
   dynamic_kol_views:
-    - 'site:x.com/status {emerging_topic} tested benchmark critique'
-    - 'site:x.com/status {emerging_topic} developer reaction counterpoint'
-    - 'site:x.com/status {emerging_topic} 实测 质疑 反方'
+    - 'site:x.com {emerging_topic} tested benchmark critique'
+    - 'site:x.com {emerging_topic} developer reaction counterpoint'
+    - 'site:x.com {emerging_topic} 实测 质疑 反方'
   conversation_discovery:
     - 'site:x.com enterprise AI adoption organization redesign agentic workflows'
     - 'site:x.com AI-native company operating model B2B AI deployment'
