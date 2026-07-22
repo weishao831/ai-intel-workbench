@@ -3,10 +3,12 @@
 """Validate a generated digest.js and manifest.js using lightweight checks."""
 
 import argparse
+import collections
 import datetime as dt
 import json
 import re
 import sys
+from pathlib import Path
 from urllib.parse import urlparse
 
 from common import ROOT, digest_path_for, extract_latest_from_manifest, read_text, slash_date
@@ -93,6 +95,119 @@ SCHEDULED_X_PROVIDER_TOKENS = (
     "public-index",
     "official-api",
 )
+V5_MIN_DIMENSION_ITEMS = {"lab": 2, "kol": 4, "paper": 1, "oss": 2, "fin": 1}
+
+
+def load_v5_trace(payload, coverage, errors):
+    trace_ref = str(coverage.get("trace_path") or "").strip()
+    if not trace_ref:
+        errors.append("quality v5 缺少 coverage_report.trace_path")
+        return None
+    trace_file = Path(trace_ref)
+    if not trace_file.is_absolute():
+        trace_file = ROOT / trace_file
+    expected = ROOT / ".daily-intel" / "runs" / str(payload.get("date")) / "research_trace.json"
+    try:
+        resolved = trace_file.resolve()
+    except OSError:
+        errors.append("research trace 路径无效：%s" % trace_ref)
+        return None
+    if resolved != expected.resolve():
+        errors.append("research trace 必须使用当日固定路径：%s" % expected.relative_to(ROOT))
+        return None
+    if not resolved.exists():
+        errors.append("research trace 不存在：%s" % trace_ref)
+        return None
+    try:
+        trace = json.loads(read_text(resolved))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append("research trace 无法读取：%s" % exc)
+        return None
+    if trace.get("date") != payload.get("date"):
+        errors.append("research trace 日期与 digest 不一致")
+    if not trace.get("started_at") or not trace.get("completed_at"):
+        errors.append("research trace 缺少开始或完成时间")
+    return trace
+
+
+def validate_v5_trace(payload, coverage, groups_by_key, errors):
+    trace = load_v5_trace(payload, coverage, errors)
+    if not trace:
+        return
+    runs = [row for row in trace.get("runs", []) if isinstance(row, dict)]
+    runs_by_id = {str(row.get("id")): row for row in runs if row.get("id")}
+    if len(runs_by_id) != len(runs):
+        errors.append("research trace 存在缺失或重复 run id")
+
+    for group_key in sorted(V4_REQUIRED_COVERAGE_GROUPS & set(groups_by_key)):
+        group = groups_by_key[group_key]
+        run_ids = [str(run_id) for run_id in group.get("run_ids") or [] if str(run_id)]
+        if not run_ids:
+            errors.append("查询组缺少可审计 run_ids：%s" % group_key)
+            continue
+        missing_ids = [run_id for run_id in run_ids if run_id not in runs_by_id]
+        if missing_ids:
+            errors.append("查询组引用不存在的 trace run：%s=%s" % (group_key, ",".join(missing_ids)))
+            continue
+        mismatched = [run_id for run_id in run_ids if runs_by_id[run_id].get("query_group") != group_key]
+        if mismatched:
+            errors.append("查询组引用了其他组的 trace run：%s=%s" % (group_key, ",".join(mismatched)))
+        traced_queries = {str(runs_by_id[run_id].get("query") or "").strip() for run_id in run_ids}
+        declared_queries = {str(query).strip() for query in group.get("queries") or [] if str(query).strip()}
+        if not declared_queries.issubset(traced_queries):
+            errors.append("查询组声明了未实际记录的 query：%s" % group_key)
+        trace_candidates = sum(
+            max(0, int(runs_by_id[run_id].get("result_count") or 0))
+            for run_id in run_ids
+        )
+        candidate_count = group.get("candidate_count")
+        if isinstance(candidate_count, int) and candidate_count > trace_candidates:
+            errors.append("查询组候选数大于 trace 原始结果：%s=%d>%d" % (
+                group_key, candidate_count, trace_candidates
+            ))
+
+    gate_runs = [row for row in runs if row.get("provider") == "gate-search-x"]
+    public_runs = [row for row in runs if row.get("provider") == "public-web-index"]
+    browser_runs = [row for row in runs if row.get("provider") == "x-browser"]
+    gate_posts = {url for row in gate_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
+    public_posts = {url for row in public_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
+    browser_posts = {url for row in browser_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
+    pipeline = coverage.get("x_pipeline") or {}
+    actual_counts = {
+        "gate_queries": len(gate_runs),
+        "gate_cited_posts": len(gate_posts),
+        "public_index_queries": len(public_runs),
+        "public_index_posts": len(public_posts),
+        "browser_queries": len(browser_runs),
+        "browser_verified_posts": len(browser_posts),
+    }
+    for field, actual in actual_counts.items():
+        if pipeline.get(field) != actual:
+            errors.append("x_pipeline.%s 与 trace 不一致：声明=%s 实际=%d" % (
+                field, pipeline.get(field), actual
+            ))
+    if len(gate_runs) < 3:
+        errors.append("Gate X 实际查询少于 3 次")
+    if len(gate_posts) < 4 and len(public_runs) + len(browser_runs) < 4:
+        errors.append("Gate 无足够逐帖引用时，公开索引/浏览器降级查询少于 4 次")
+    for row in public_runs:
+        query = str(row.get("query") or "").lower()
+        if "since:" in query or "filter:" in query:
+            errors.append("公开网页搜索误用了 X 站内操作符：%s" % row.get("id"))
+
+    lab_pairs = {(row.get("lab"), row.get("track")) for row in runs}
+    missing_pairs = sorted(
+        (lab, track)
+        for lab in CORE_DOMESTIC_LABS
+        for track in LAB_ACTIVITY_TYPES
+        if (lab, track) not in lab_pairs
+    )
+    if missing_pairs:
+        errors.append("缺少国内厂商逐轨 trace：%s" % ", ".join("%s/%s" % pair for pair in missing_pairs))
+
+    print("[validate] trace_runs=%d gate_queries=%d gate_posts=%d public_queries=%d browser_queries=%d" % (
+        len(runs), len(gate_runs), len(gate_posts), len(public_runs), len(browser_runs)
+    ))
 
 
 def item_x_urls(item):
@@ -245,6 +360,7 @@ def validate_digest(date_value):
         strict_quality = quality_version >= 2
         coverage_quality = quality_version >= 3
         expanded_quality = quality_version >= 4
+        trace_quality = quality_version >= 5
 
         def quality_issue(message, hard=True):
             if strict_quality and hard:
@@ -381,6 +497,19 @@ def validate_digest(date_value):
                     errors.append("至少 2 个重点话题需同时有首发者与独立评估")
                 if counterpoint_topics < 1:
                     errors.append("至少 1 个重点话题需要反方/边界观点")
+
+            if trace_quality:
+                validate_v5_trace(payload, coverage, groups_by_key, errors)
+
+        if trace_quality:
+            dimension_counts = collections.Counter(str(item.get("dim") or "") for item in items)
+            if len(items) < 12:
+                errors.append("quality v5 总条目少于 12 条：%d" % len(items))
+            for dim_key, minimum in V5_MIN_DIMENSION_ITEMS.items():
+                if dimension_counts.get(dim_key, 0) < minimum:
+                    errors.append("quality v5 维度 %s 少于 %d 条：%d" % (
+                        dim_key, minimum, dimension_counts.get(dim_key, 0)
+                    ))
 
         ages = []
         invalid_date_items = []
