@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.0 - 2026-07-22
+
+Full release notes: [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md)
+
+- Added `research_trace.json` and `scripts/research_trace.py` so every query group, provider count, candidate total, and domestic-lab track must be backed by a raw or normalized evidence artifact.
+- Added `quality_version: 5` validation that rejects untraceable `completed` claims, invented candidate counts, missing eight-lab × three-track checks, and empty digests caused by an X-only failure.
+- Changed the X fallback order to Gate candidate discovery → public index → locally configured limited read-only browser search. Scheduled browser use is capped at six first-viewport queries with no scrolling or account actions and stops on any challenge.
+- Removed X-only `since:`/`filter:` operators from ordinary web-search templates and reserved them for X's own search surface.
+- Required non-X dimensions to remain populated when KOL evidence is insufficient, preserving useful lab, paper, open-source, and finance research for diagnosis.
+- Scoped combined evidence artifacts to their exact query so one result set cannot be counted by multiple trace runs.
+
 ## 0.2.0 - 2026-07-21
 
 Full release notes: [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md)
