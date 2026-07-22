@@ -20,16 +20,18 @@ The deterministic writer also accepts canonical JSON:
   "date": "2026-06-29",
   "date_cn": "2026年6月29日 · 周一",
   "generated_at": "2026-06-29",
-  "quality_version": 4,
+  "quality_version": 5,
   "language": "zh",
   "refresh_note": "Short generation note",
   "market_mood": "Optional market/context paragraph",
   "coverage_report": {
+    "trace_path": ".daily-intel/runs/2026-06-29/research_trace.json",
     "query_groups": [
       {
         "key": "community_hotspots",
         "status": "completed",
         "queries": ["Actual query issued"],
+        "run_ids": ["web-community-01"],
         "candidate_count": 5,
         "selected_ids": ["lab-1"],
         "rejection_reasons": []
@@ -110,7 +112,7 @@ The deterministic writer also accepts canonical JSON:
       "buzz": "Community discussion",
       "x_src": ["https://x.com/.../status/..."],
       "evidence": {
-        "provider": "browser | public-web-index | official-api | official-site",
+        "provider": "x-browser | public-web-index | official-api | official-site",
         "verification_level": "direct_page | public_index | official_api",
         "excerpt": "Attributable source text used for the summary",
         "verified_url": "https://x.com/author/status/1234567890",
@@ -136,7 +138,7 @@ The deterministic writer also accepts canonical JSON:
 
 ## Required Fields
 
-- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`; new production digests should set `quality_version: 4` and include `coverage_report`
+- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`; new production digests should set `quality_version: 5` and include trace-backed `coverage_report`
 - Dimension: `key`, `cn`, `overview`
 - Hot topic: `title`, `summary`, `related`
 - Item: `id`, `dim`, `title`, `source`, `url`, `date`, `summary`, `detail`
@@ -187,7 +189,24 @@ Keep technical names, source names, product names, tickers, and URLs unchanged u
 - For `quality_version: 4`, `coverage_report.lab_pipeline.core_labs_checked` must contain all eight core domestic labs, and `activity_tracks` must complete `model_release`, `product_ops`, and `research` with actual queries and candidate records.
 - For `quality_version: 4`, every lab item requires `lab_activity_type`. Every KOL item requires `discovery_mode: watchlist | topic_expansion` and `viewpoint_role: originator | independent_evaluation | counterpoint | context`.
 - For `quality_version: 4`, `coverage_report.viewpoint_pipeline` requires at least six dynamic candidates, at least two dynamic selections, at least two topics with originator + independent evaluation, and at least one counterpoint topic.
+- For `quality_version: 5`, `coverage_report.trace_path` must reference the same day's finalized `research_trace.json`. Every query group needs `run_ids`; its queries, candidate count, and X pipeline totals must match trace artifacts.
+- For `quality_version: 5`, the trace must contain at least three actual Gate X queries. If Gate yields fewer than four concrete cited posts, at least four public-index/browser fallback queries are required.
+- For `quality_version: 5`, all eight core domestic labs need separate trace records for `model_release`, `product_ops`, and `research` (24 lab/track pairs). A combined “checked eight labs” sentence is not evidence.
+- For `quality_version: 5`, the digest needs at least 12 items, including at least two lab items, four KOL viewpoints, one paper, two open-source projects, and one AI-finance item. X failure must not erase researched non-X dimensions.
+- X operators such as `since:` and `filter:` are valid only in X's own search. They are invalid in ordinary public-web queries.
 - Do not use generic research indexes, topic pages, profile pages, or provider-monitoring messages as intelligence items.
+
+## Research Trace
+
+Create and finalize the trace before publishing:
+
+```bash
+python3 scripts/research_trace.py init --date 2026-06-29 --mode scheduled
+python3 scripts/research_trace.py record --date 2026-06-29 --id gate-x-01 --provider gate-search-x --group x_viewpoints --query "AI model evaluation critique" --artifact .daily-intel/runs/2026-06-29/evidence/gate-x-01.json
+python3 scripts/research_trace.py finalize --date 2026-06-29
+```
+
+Each trace run stores the real query, provider, execution time, raw-result count, discovered URLs, and artifact path. Lab checks additionally set `lab` and `track`.
 
 ## Writing Files
 
