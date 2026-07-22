@@ -1,7 +1,7 @@
 {
   "name": "ai-intel-workbench",
-  "version": "0.2.0",
-  "description": "Local daily AI intelligence workbench with domestic-lab model/product/research tracking, dynamic KOL viewpoint discovery, X evidence, freshness gates, a static dashboard, optional push bots, and scheduled runs.",
+  "version": "0.3.0",
+  "description": "Local daily AI intelligence workbench with auditable research traces, domestic-lab model/product/research tracking, dynamic KOL viewpoint discovery, X evidence, freshness gates, a static dashboard, optional push bots, and scheduled runs.",
   "repository": "https://github.com/weishao831/ai-intel-workbench",
   "homepage": "https://github.com/weishao831/ai-intel-workbench",
   "author": {
