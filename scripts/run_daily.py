@@ -201,7 +201,7 @@ def create_research_prompt(date_value, language_override=None):
 
 执行要求：
 
-1. 读取 `config/industry.yaml`、`config/sources.yaml`、`config/keywords.yaml`、`config/kol.yaml`、`config/conversation_radar.yaml`、`config/research_radar.yaml`。
+1. 读取 `config/industry.yaml`、`config/sources.yaml`、`config/keywords.yaml`、`config/kol.yaml`、`config/conversation_radar.yaml`、`config/research_radar.yaml`、`config/runtime.yaml`，然后先运行 `python3 scripts/research_trace.py init --date {date_iso} --mode scheduled`。每次真实查询都必须保存原始或规范化 JSON 到 `.daily-intel/runs/{date_iso}/evidence/`，再用 `research_trace.py record` 登记；没有 artifact 和 run id 的查询不得写成 completed。
 2. 先执行 `config/conversation_radar.yaml` 的话题发现，不要一上来按五维度填表：
    - 先开放扫描过去 24 小时 AI 圈热词，再用当天日期、最近 72 小时和 7 天窗口宽搜，先找 8-15 个候选讨论；
    - 每天强制执行 `mandatory_pulse` 八组查询：`community_hotspots`、`access_and_quota`、`chinese_frontier_models`、`x_viewpoints`、`domestic_lab_models`、`domestic_lab_product_ops`、`domestic_lab_research`、`dynamic_kol_views`；
@@ -220,17 +220,18 @@ def create_research_prompt(date_value, language_override=None):
 4. 按五维度组织展示：AI 大厂动态、KOL 观点、前沿论文、开源项目、AI × 金融。研究雷达与话题雷达发现可进入任一维度。
 5. KOL 观点必须执行 X-first，但只接受具体观点证据：
    - 从完整 `config/kol.yaml` 和话题发现的新人物中选取候选；
-   - 定时/无人值守运行只用公开搜索和 Gate CLI `news feed search-x` 发现近 7 天帖子；不要脚本化搜索、滚动或批量读取 X 网站；
+   - 先运行 `gate-cli preflight --format json`，再执行至少 3 次 Gate CLI `news feed search-x` 并保存原始 JSON。Gate 是候选发现，不是证据；
    - Gate CLI 仅作候选发现。把每次 `search-x --format json` 结果保存后运行 `python3 scripts/validate_x_candidates.py <result.json>`；校验失败就整段丢弃，即使 `summary`/`content` 非空；但不能因此结束观点发现；
-   - Gate 无 cited_tweets/items 时，立即降级为公开网页搜索，用热点专有词加 `site:x.com` 找具体 status/article。定时运行只采用公开索引中同时可见作者、日期、正文摘录的原帖，设置 `provider=public-web-index`、`verification_level=public_index`、`excerpt`；Gate 的无引用摘要绝不能替代作者观点；
-   - 只有用户明确发起的交互式运行，才可低频打开少量最终候选的具体 `x.com/<handle>/status/<digits>` 或 `x.com/i/article/<digits>`，核对作者、时间和可见正文；定时任务不能自动复用登录态；
+   - Gate 无 cited_tweets/items 时，立即降级为公开网页搜索，用热点专有词加 `site:x.com` 找具体 status/article。普通网页搜索不得使用 `since:`、`filter:` 等 X 站内操作符；只采用同时可见作者、日期、正文摘录的原帖，设置 `provider=public-web-index`、`verification_level=public_index`、`excerpt`；
+   - 若公开索引只返回 trending/profile，定时任务可按 `config/runtime.yaml` 使用本机浏览器做最多 6 次低频、只读的 X 站内搜索：每次只读首屏最多 8 条，不滚动、不批量访问 profile、不点赞/关注/转发/发帖/发消息，查询间隔至少 10 秒；`domcontentloaded` 后若仍为 Loading，等待 Search timeline/article 出现或最多补等 3 秒再判空；遇到登录墙、验证码或挑战立即停止；
+   - 具体 `x.com/<handle>/status/<digits>` 或 article 必须记录作者、时间、正文摘录并设置 `provider=x-browser`、`verification_level=direct_page`；
    - profile、with_replies、search、home 只用于导航，绝不能写成观点条目，也不能计入 X 比例；
    - X Article 正文被登录墙阻挡时，保留 X 文章/状态链接，并补作者自有博客、Substack 或官方镜像作为正文证据；遇到登录墙、验证码或安全拦截立即停止，不得绕过。
 6. KOL 维度至少 4 条，至少 60% 来自浏览器或公开索引核验过的具体 X status/article。每个重点话题不能只查固定名单，要用专有词、标题、产品名反向找人：
    - 至少选入 2 条 `discovery_mode=topic_expansion` 的观点；
    - 至少 2 个重点话题同时拥有 `originator` 和 `independent_evaluation`；
    - 至少 1 个话题有 `counterpoint`，用来揭示部署门槛、证据边界或反方逻辑。
-   达不到时不要写占位条目，应让质量校验失败。
+   达不到时不要写占位条目，应让质量校验失败；但大厂、论文、开源和金融条目仍必须正常生成并保留，禁止因为 X 不足把整个 `items` 清空。
 7. 执行新鲜度与去重门槛：
    - 至少 65% 条目在 7 天内发布，至少 5 条在 72 小时内发布；
    - 超过 7 天只能设为 `recency_role=background`，并写清与本周新事件绑定的 `why_now`；
@@ -241,13 +242,14 @@ def create_research_prompt(date_value, language_override=None):
 9. 开源项目额外关注金融 Agent、量化 Agent、AI 投研、回测/券商/交易所接口、自动推送、风控闭环；星少但机制新、X 讨论早期升温的项目可标 `potential=潜力新星`。
 10. 过滤营销、招聘、重复、旧闻填充、监测占位与不可验证信息；保留来源 URL、真实发布日期和可信度说明。不要把来源日期改成运行当天。
 11. 长文/研究项写作规则：若 `content_type` 是 `x_article`、`official_research`、`paper`、`technical_report`、`model_card`，通常设置 `depth=deep`，`detail` 至少约 650 个中文字符，并补充 `key_points`、`examples`、`product_implications`、`limitations`。目标是用户不跳原文也能了解七七八八。
-12. 按“产出语言”要求组织面向用户字段。产出 canonical JSON 时设置根字段 `quality_version: 4`，每条填写 `topic_cluster`、`recency_role`；AI 大厂条目追加 `lab_activity_type=model_release|product_ops|research`；KOL 条目追加 `discovery_mode=watchlist|topic_expansion` 和 `viewpoint_role=originator|independent_evaluation|counterpoint|context`；X 条目填写 `evidence.provider`、`verification_level`、`excerpt`、`verified_url`、`verified_at`、`published_at` 和 `direct`。字段参考 `skills/daily-intelligence-workbench/references/data-schema.md`。
-13. 根字段必须写 `coverage_report`。八个必扫 query group 均记录 `key`、`status=completed`、实际 `queries`、`candidate_count`、`selected_ids`；有候选但未入选时写 `rejection_reasons`。同时记录：
+12. 按“产出语言”要求组织面向用户字段。产出 canonical JSON 时设置根字段 `quality_version: 5`，每条填写 `topic_cluster`、`recency_role`；AI 大厂条目追加 `lab_activity_type=model_release|product_ops|research`；KOL 条目追加 `discovery_mode=watchlist|topic_expansion` 和 `viewpoint_role=originator|independent_evaluation|counterpoint|context`；X 条目填写 `evidence.provider`、`verification_level`、`excerpt`、`verified_url`、`verified_at`、`published_at` 和 `direct`。字段参考 `skills/daily-intelligence-workbench/references/data-schema.md`。
+13. 根字段必须写 `coverage_report`，并设置 `trace_path=.daily-intel/runs/{date_iso}/research_trace.json`。八个必扫 query group 均记录 `key`、`status=completed`、实际 `queries`、`run_ids`、`candidate_count`、`selected_ids`；有候选但未入选时写 `rejection_reasons`。`queries`、候选数和管道计数必须能被 trace 反查，不能估算或补写。同时记录：
    - `x_pipeline`：Gate 查询数/逐帖引用数、公开索引查询数/具体帖子数、交互浏览器查询数/核验帖子数；
    - `lab_pipeline`：`core_labs_checked` 覆盖 8 家核心厂商，`activity_tracks` 完整记录三条轨道的查询、候选和入选/淘汰；
    - `viewpoint_pipeline`：动态候选不少于 6，入选不少于 2，`topic_roles` 记录重点话题的首发者、独立评估和反方。
+   - trace 中为 8 家核心厂商分别留下 `lab + track` 的 24 组真实检查记录；批量调用可以，但每个查询及原始结果必须独立登记；
    禁止用笼统的“已扫描”代替。
-14. 写入后运行：
+14. 完成检索后先运行 `python3 scripts/research_trace.py finalize --date {date_iso}`；trace 校验失败时继续补查询，不得写 completed。然后写入 canonical JSON 并运行：
 
 ```bash
 python3 scripts/run_daily.py --date {date_iso} --from-json <canonical-json-path> --publish-on-valid
