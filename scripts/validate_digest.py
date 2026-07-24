@@ -11,7 +11,14 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-from common import ROOT, digest_path_for, extract_latest_from_manifest, read_text, slash_date
+from common import (
+    ROOT,
+    digest_path_for,
+    extract_latest_from_manifest,
+    load_workbench_config,
+    read_text,
+    slash_date,
+)
 
 
 DEEP_TYPES = {"x_article", "official_research", "paper", "technical_report", "model_card", "long_blog"}
@@ -76,6 +83,15 @@ V4_REQUIRED_COVERAGE_GROUPS = V3_REQUIRED_COVERAGE_GROUPS | {
     "domestic_lab_research",
     "dynamic_kol_views",
 }
+WORKBENCH_CONFIG = load_workbench_config()
+WORKBENCH_DISCOVERY = WORKBENCH_CONFIG.get("discovery") or {}
+WORKBENCH_KOL = WORKBENCH_CONFIG.get("kol") or {}
+V6_TREND_LANES = [
+    row for row in WORKBENCH_DISCOVERY.get("lanes") or []
+    if isinstance(row, dict) and row.get("enabled", True) and row.get("key")
+]
+V6_TREND_GROUPS = {str(row["key"]) for row in V6_TREND_LANES}
+V6_REQUIRED_COVERAGE_GROUPS = V4_REQUIRED_COVERAGE_GROUPS | V6_TREND_GROUPS
 CORE_DOMESTIC_LABS = {
     "qwen",
     "deepseek",
@@ -95,7 +111,23 @@ SCHEDULED_X_PROVIDER_TOKENS = (
     "public-index",
     "official-api",
 )
-V5_MIN_DIMENSION_ITEMS = {"lab": 2, "kol": 4, "paper": 1, "oss": 2, "fin": 1}
+WORKBENCH_QUALITY = WORKBENCH_CONFIG.get("quality") or {}
+V5_MIN_TOTAL_ITEMS = int(WORKBENCH_QUALITY.get("min_total_items", 12))
+V5_MIN_FRESH_72H = int(WORKBENCH_QUALITY.get("min_fresh_72h", 5))
+V5_MIN_FRESH_7D_RATIO = float(WORKBENCH_QUALITY.get("min_fresh_7d_ratio", 0.65))
+V5_MAX_BACKGROUND_RATIO = float(WORKBENCH_QUALITY.get("max_background_ratio", 0.20))
+V5_MIN_DIMENSION_ITEMS = {
+    "lab": 2,
+    "kol": 4,
+    "paper": 1,
+    "oss": 2,
+    "fin": 1,
+}
+V5_MIN_DIMENSION_ITEMS.update({
+    key: int(value)
+    for key, value in (WORKBENCH_QUALITY.get("dimension_minima") or {}).items()
+    if key in V5_MIN_DIMENSION_ITEMS
+})
 
 
 def load_v5_trace(payload, coverage, errors):
@@ -130,16 +162,17 @@ def load_v5_trace(payload, coverage, errors):
     return trace
 
 
-def validate_v5_trace(payload, coverage, groups_by_key, errors):
+def validate_v5_trace(payload, coverage, groups_by_key, required_groups, errors):
     trace = load_v5_trace(payload, coverage, errors)
     if not trace:
         return
     runs = [row for row in trace.get("runs", []) if isinstance(row, dict)]
+    schema_version = int(trace.get("schema_version") or 1)
     runs_by_id = {str(row.get("id")): row for row in runs if row.get("id")}
     if len(runs_by_id) != len(runs):
         errors.append("research trace 存在缺失或重复 run id")
 
-    for group_key in sorted(V4_REQUIRED_COVERAGE_GROUPS & set(groups_by_key)):
+    for group_key in sorted(required_groups & set(groups_by_key)):
         group = groups_by_key[group_key]
         run_ids = [str(run_id) for run_id in group.get("run_ids") or [] if str(run_id)]
         if not run_ids:
@@ -166,12 +199,45 @@ def validate_v5_trace(payload, coverage, groups_by_key, errors):
                 group_key, candidate_count, trace_candidates
             ))
 
+    if int(payload.get("quality_version") or 0) >= 6:
+        for lane in V6_TREND_LANES:
+            key = str(lane["key"])
+            lane_runs = [row for row in runs if row.get("query_group") == key]
+            min_queries = max(1, int(lane.get("min_queries") or 1))
+            min_candidates = max(0, int(lane.get("min_candidates") or 0))
+            valid_candidates = sum(max(0, int(row.get("valid_candidate_count") or 0)) for row in lane_runs)
+            domains = {
+                str(domain).strip()
+                for row in lane_runs
+                for domain in row.get("candidate_domains") or []
+                if str(domain).strip()
+            }
+            if len(lane_runs) < min_queries:
+                errors.append("热点泳道 %s trace 查询少于 %d 次" % (key, min_queries))
+            if valid_candidates < min_candidates:
+                errors.append("热点泳道 %s 可归属候选少于 %d 条" % (key, min_candidates))
+            if valid_candidates and len(domains) < 2:
+                errors.append("热点泳道 %s 候选来源域名少于 2 个" % key)
+        x_trend_runs = [
+            row for row in runs
+            if row.get("query_group") in V6_TREND_GROUPS
+            and row.get("provider") in {"gate-search-x", "public-web-index", "x-browser"}
+        ]
+        if V6_TREND_GROUPS and len(x_trend_runs) < 3:
+            errors.append("热点泳道中的 X 定向发现少于 3 次")
+
     gate_runs = [row for row in runs if row.get("provider") == "gate-search-x"]
     public_runs = [row for row in runs if row.get("provider") == "public-web-index"]
     browser_runs = [row for row in runs if row.get("provider") == "x-browser"]
     gate_posts = {url for row in gate_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
     public_posts = {url for row in public_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
     browser_posts = {url for row in browser_runs for url in row.get("x_post_urls") or [] if is_concrete_x_evidence(url)}
+    public_fresh_posts = {
+        url for row in public_runs for url in row.get("fresh_x_post_urls") or [] if is_concrete_x_evidence(url)
+    }
+    browser_fresh_posts = {
+        url for row in browser_runs for url in row.get("fresh_x_post_urls") or [] if is_concrete_x_evidence(url)
+    }
     pipeline = coverage.get("x_pipeline") or {}
     actual_counts = {
         "gate_queries": len(gate_runs),
@@ -190,6 +256,28 @@ def validate_v5_trace(payload, coverage, groups_by_key, errors):
         errors.append("Gate X 实际查询少于 3 次")
     if len(gate_posts) < 4 and len(public_runs) + len(browser_runs) < 4:
         errors.append("Gate 无足够逐帖引用时，公开索引/浏览器降级查询少于 4 次")
+    if schema_version >= 2:
+        for row in runs:
+            window_days = row.get("window_days")
+            if not isinstance(window_days, int) or not 1 <= window_days <= 30:
+                errors.append("trace run 缺少有效 window_days：%s" % row.get("id"))
+        for row in public_runs + browser_runs:
+            evidence_by_url = {
+                evidence.get("url"): evidence
+                for evidence in row.get("x_post_evidence") or []
+                if isinstance(evidence, dict) and evidence.get("url")
+            }
+            for url in row.get("x_post_urls") or []:
+                evidence = evidence_by_url.get(url) or {}
+                if (
+                    not str(evidence.get("author") or "").strip()
+                    or not str(evidence.get("published_at") or "").strip()
+                    or len(str(evidence.get("excerpt") or "").strip()) < 20
+                ):
+                    errors.append("trace X 证据缺少作者/日期/正文摘录：%s" % row.get("id"))
+        blocked_browser = any(row.get("status") == "blocked" for row in browser_runs)
+        if len(gate_posts) < 4 and len(public_fresh_posts) < 6 and not blocked_browser and len(browser_runs) < 4:
+            errors.append("Gate/公开索引近 7 天 X 证据不足时，浏览器降级查询少于 4 次")
     for row in public_runs:
         query = str(row.get("query") or "").lower()
         if "since:" in query or "filter:" in query:
@@ -205,9 +293,11 @@ def validate_v5_trace(payload, coverage, groups_by_key, errors):
     if missing_pairs:
         errors.append("缺少国内厂商逐轨 trace：%s" % ", ".join("%s/%s" % pair for pair in missing_pairs))
 
-    print("[validate] trace_runs=%d gate_queries=%d gate_posts=%d public_queries=%d browser_queries=%d" % (
-        len(runs), len(gate_runs), len(gate_posts), len(public_runs), len(browser_runs)
+    print("[validate] trace_runs=%d gate_queries=%d gate_posts=%d public_queries=%d public_fresh_posts=%d browser_queries=%d browser_fresh_posts=%d" % (
+        len(runs), len(gate_runs), len(gate_posts), len(public_runs), len(public_fresh_posts),
+        len(browser_runs), len(browser_fresh_posts)
     ))
+    return trace
 
 
 def item_x_urls(item):
@@ -216,6 +306,14 @@ def item_x_urls(item):
     evidence = item.get("evidence") or {}
     urls.append(evidence.get("verified_url", ""))
     return [str(url).strip() for url in urls if str(url).strip()]
+
+
+def item_x_handle(item):
+    for url in item_x_urls(item):
+        match = re.match(r"^https?://(?:www\.|mobile\.)?x\.com/([^/?#]+)/", url, re.I)
+        if match:
+            return ("@" + match.group(1)).lower()
+    return ""
 
 
 def is_concrete_x_evidence(url):
@@ -361,6 +459,8 @@ def validate_digest(date_value):
         coverage_quality = quality_version >= 3
         expanded_quality = quality_version >= 4
         trace_quality = quality_version >= 5
+        trend_quality = quality_version >= 6
+        trace = None
 
         def quality_issue(message, hard=True):
             if strict_quality and hard:
@@ -373,7 +473,10 @@ def validate_digest(date_value):
 
         if coverage_quality:
             coverage = payload.get("coverage_report") or {}
-            required_coverage_groups = V4_REQUIRED_COVERAGE_GROUPS if expanded_quality else V3_REQUIRED_COVERAGE_GROUPS
+            if trend_quality:
+                required_coverage_groups = V6_REQUIRED_COVERAGE_GROUPS
+            else:
+                required_coverage_groups = V4_REQUIRED_COVERAGE_GROUPS if expanded_quality else V3_REQUIRED_COVERAGE_GROUPS
             raw_groups = coverage.get("query_groups") or []
             if isinstance(raw_groups, dict):
                 groups = []
@@ -499,12 +602,12 @@ def validate_digest(date_value):
                     errors.append("至少 1 个重点话题需要反方/边界观点")
 
             if trace_quality:
-                validate_v5_trace(payload, coverage, groups_by_key, errors)
+                trace = validate_v5_trace(payload, coverage, groups_by_key, required_coverage_groups, errors)
 
         if trace_quality:
             dimension_counts = collections.Counter(str(item.get("dim") or "") for item in items)
-            if len(items) < 12:
-                errors.append("quality v5 总条目少于 12 条：%d" % len(items))
+            if len(items) < V5_MIN_TOTAL_ITEMS:
+                errors.append("quality v5 总条目少于 %d 条：%d" % (V5_MIN_TOTAL_ITEMS, len(items)))
             for dim_key, minimum in V5_MIN_DIMENSION_ITEMS.items():
                 if dimension_counts.get(dim_key, 0) < minimum:
                     errors.append("quality v5 维度 %s 少于 %d 条：%d" % (
@@ -534,14 +637,44 @@ def validate_digest(date_value):
         print("[validate] freshness_72h=%d freshness_7d=%d/%d (%.0f%%) older_7d=%d older_30d=%d max_age=%d" % (
             fresh_72h, fresh_7d, len(valid_ages), fresh_ratio * 100, older_7d, older_30d, max_age
         ))
-        if items and fresh_72h < 5:
-            quality_issue("72 小时内条目不足：%d；质量门槛为至少 5 条" % fresh_72h)
-        if items and fresh_ratio < 0.65:
-            quality_issue("近 7 天条目占比不足：%.0f%%；质量门槛为至少 65%%" % (fresh_ratio * 100))
-        if items and background_ratio > 0.20:
-            quality_issue("7 天外背景条目过多：%.0f%%；质量门槛为最多 20%%" % (background_ratio * 100))
+        if items and fresh_72h < V5_MIN_FRESH_72H:
+            quality_issue("72 小时内条目不足：%d；质量门槛为至少 %d 条" % (fresh_72h, V5_MIN_FRESH_72H))
+        if items and fresh_ratio < V5_MIN_FRESH_7D_RATIO:
+            quality_issue("近 7 天条目占比不足：%.0f%%；质量门槛为至少 %.0f%%" % (
+                fresh_ratio * 100, V5_MIN_FRESH_7D_RATIO * 100
+            ))
+        if items and background_ratio > V5_MAX_BACKGROUND_RATIO:
+            quality_issue("7 天外背景条目过多：%.0f%%；质量门槛为最多 %.0f%%" % (
+                background_ratio * 100, V5_MAX_BACKGROUND_RATIO * 100
+            ))
         if older_30d:
             quality_issue("存在 %d 条超过 30 天的独立条目；旧资料只能进入新话题的背景说明" % older_30d)
+        if trace_quality and trace and int(trace.get("schema_version") or 1) >= 2:
+            freshness_failed = (
+                fresh_72h < V5_MIN_FRESH_72H
+                or fresh_ratio < V5_MIN_FRESH_7D_RATIO
+            )
+            if freshness_failed:
+                freshness_pipeline = (payload.get("coverage_report") or {}).get("freshness_pipeline") or {}
+                recovery_ids = [
+                    str(run_id) for run_id in freshness_pipeline.get("recovery_run_ids") or [] if str(run_id)
+                ]
+                trace_runs = {
+                    str(row.get("id")): row for row in trace.get("runs", [])
+                    if isinstance(row, dict) and row.get("id")
+                }
+                valid_recovery = [
+                    trace_runs[run_id] for run_id in recovery_ids
+                    if run_id in trace_runs and isinstance(trace_runs[run_id].get("window_days"), int)
+                    and trace_runs[run_id]["window_days"] <= 7
+                ]
+                recovery_72h = [row for row in valid_recovery if row.get("window_days") <= 3]
+                if freshness_pipeline.get("recovery_triggered") is not True:
+                    errors.append("新鲜度不足但 freshness recovery 未触发")
+                if len(valid_recovery) < 6:
+                    errors.append("新鲜度不足时，原生近 7 天恢复查询少于 6 次")
+                if len(recovery_72h) < 2:
+                    errors.append("新鲜度不足时，原生近 72 小时恢复查询少于 2 次")
 
         for item, age in zip(items, ages):
             if age is not None and age > 7:
@@ -633,6 +766,49 @@ def validate_digest(date_value):
             if role_counts["counterpoint"] < 1:
                 errors.append("KOL 观点缺少反方/边界观点")
 
+        if trend_quality:
+            trend_items = [
+                item for item in items
+                if item.get("topic_origin") == "trend_discovery"
+                and item.get("trend_lane") in V6_TREND_GROUPS
+            ]
+            min_trend_items = int(WORKBENCH_DISCOVERY.get("min_trend_items") or 3)
+            selected_lanes = {item.get("trend_lane") for item in trend_items}
+            min_lanes = int(WORKBENCH_DISCOVERY.get("min_distinct_lanes_selected") or 2)
+            if len(trend_items) < min_trend_items:
+                errors.append("趋势发现入选少于 %d 条：%d" % (min_trend_items, len(trend_items)))
+            if len(selected_lanes) < min_lanes:
+                errors.append("趋势发现入选覆盖泳道少于 %d 条：%d" % (min_lanes, len(selected_lanes)))
+            watchlist_handles = {
+                str(row.get("handle") or "").strip().lower()
+                for row in WORKBENCH_KOL.get("authors") or []
+                if isinstance(row, dict) and row.get("enabled", True) and str(row.get("handle") or "").startswith("@")
+            }
+            off_watchlist_kol = [
+                item for item in kol_items
+                if item.get("discovery_mode") == "topic_expansion"
+                and item_x_handle(item)
+                and item_x_handle(item) not in watchlist_handles
+            ]
+            min_off_watchlist = int(WORKBENCH_DISCOVERY.get("min_off_watchlist_kol") or 2)
+            if len(off_watchlist_kol) < min_off_watchlist:
+                errors.append("名单外 KOL 观点少于 %d 条：%d" % (min_off_watchlist, len(off_watchlist_kol)))
+            trend_pipeline = (payload.get("coverage_report") or {}).get("trend_pipeline") or {}
+            lane_rows = [
+                row for row in trend_pipeline.get("lanes") or []
+                if isinstance(row, dict) and row.get("key")
+            ]
+            lane_keys = {str(row.get("key")) for row in lane_rows}
+            missing_lane_rows = sorted(V6_TREND_GROUPS - lane_keys)
+            if missing_lane_rows:
+                errors.append("trend_pipeline 缺少热点泳道：%s" % ", ".join(missing_lane_rows))
+            declared_dynamic = {
+                str(item_id) for item_id in trend_pipeline.get("trend_selected_ids") or [] if str(item_id)
+            }
+            actual_dynamic = {str(item.get("id")) for item in trend_items if item.get("id")}
+            if declared_dynamic != actual_dynamic:
+                errors.append("trend_pipeline.trend_selected_ids 与实际趋势条目不一致")
+
         for item in kol_items:
             concrete = [url for url in item_x_urls(item) if is_concrete_x_evidence(url)]
             content_type = item.get("content_type")
@@ -669,6 +845,13 @@ def validate_digest(date_value):
                 errors.append("热点缺少两条独立来源：%s" % topic.get("title", "(no-title)"))
             if strict_quality and not any(age is not None and 0 <= age <= 7 for age in related_ages):
                 errors.append("热点没有近 7 天证据：%s" % topic.get("title", "(no-title)"))
+            if trend_quality:
+                if topic.get("trend_lane") not in V6_TREND_GROUPS:
+                    errors.append("热点缺少有效 trend_lane：%s" % topic.get("title", "(no-title)"))
+                if len(str(topic.get("why_now") or "").strip()) < 20:
+                    errors.append("热点缺少具体 why_now：%s" % topic.get("title", "(no-title)"))
+                if len(str(topic.get("debate") or "").strip()) < 20:
+                    errors.append("热点缺少讨论分歧/边界：%s" % topic.get("title", "(no-title)"))
 
         deep_items = [
             item for item in items

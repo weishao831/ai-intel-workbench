@@ -16,9 +16,9 @@ Supported environments:
 
 > The open-source default does not include any personal webhook, cookie, token, or account state. X/Twitter login state, API keys, and push bots are configured locally by each user.
 
-> The default KOL seed list is included in `config/kol.yaml` with 69 AI researchers, lab leads, AI engineering voices, open-source/model builders, evaluation/safety accounts, AI x crypto voices, and Chinese-language AI commentators. It is a watch pool rather than a discovery ceiling: every run also expands from the day's exact topics, originators, evaluators, and counterarguments.
+> The default KOL seed list is included in `config/kol.js` with 69 AI researchers, lab leads, AI engineering voices, open-source/model builders, evaluation/safety accounts, AI x crypto voices, and Chinese-language AI commentators. Authors can be added, edited, disabled, or removed from the dashboard. It is a watch pool rather than a discovery ceiling.
 
-> `config/conversation_radar.yaml` first runs eight mandatory coverage groups, including separate domestic-lab model, product-operations, and research tracks plus dynamic KOL discovery. `config/research_radar.yaml` then scans researcher X Articles, frontier-lab research, model cards, technical reports, and finance/quant agent repositories.
+> `config/conversation_radar.yaml` first runs four open-trend lanes for global AI, visual/multimodal models, AI x Web3, and AI x finance, then completes twelve mandatory coverage groups. `config/research_radar.yaml` scans researcher X Articles, frontier-lab research, independent visual-model releases, technical reports, and finance/quant agent repositories.
 
 ---
 
@@ -34,9 +34,11 @@ ai-intel-workbench/
 │   ├── industry.yaml
 │   ├── sources.yaml
 │   ├── keywords.yaml
-│   ├── kol.yaml
+│   ├── kol.js
 │   ├── conversation_radar.yaml
 │   ├── research_radar.yaml
+│   ├── workbench.js
+│   ├── workbench.user.js
 │   ├── push.yaml
 │   ├── runtime.yaml
 │   └── secrets.example.env
@@ -257,20 +259,33 @@ Smoke test with bundled sample data:
 python3 scripts/run_daily.py --date today --sample
 ```
 
-Push after generation:
+Push after generation. Maintain bot metadata in the dashboard and keep the real value in a local environment variable:
 
 ```bash
-export DAILY_INTEL_LARK_WEBHOOK="https://open.larksuite.com/open-apis/bot/v2/hook/xxx"
+export DAILY_INTEL_LARK_WEBHOOK="<your-local-webhook>"
 python3 scripts/run_daily.py --date today --push
 ```
 
-Multiple local bot targets can remain configured without committing webhooks. With `target_policy: primary_only` in `config/push.yaml`, scheduled runs send only the bot named by `primary_target_key`; numbered targets are retained but not sent automatically:
+Multiple local bot targets can remain configured without committing webhooks. With `target_policy: primary_only`, scheduled runs send only the enabled primary target:
 
 ```bash
-export DAILY_INTEL_LARK_WEBHOOK_1="https://open.larksuite.com/open-apis/bot/v2/hook/xxx"
-export DAILY_INTEL_LARK_WEBHOOK_2="https://open.larksuite.com/open-apis/bot/v2/hook/yyy"
+export DAILY_INTEL_LARK_WEBHOOK_1="<your-primary-webhook>"
+export DAILY_INTEL_LARK_WEBHOOK_2="<your-secondary-webhook>"
 python3 scripts/push_lark.py 2026/06/29 --dry-run
 ```
+
+---
+
+## Dashboard Configuration
+
+Open `index.html` directly and use Configuration Center:
+
+- **Runtime & Quality** manages execution, quality gates, providers, and the four open-trend lanes.
+- **KOL Authors** provides search, platform/category filters, pagination, and full author maintenance.
+- **Push Bots** manages target name, type, primary/secondary role, enable state, and environment-variable names. It never stores a real webhook or signing secret.
+- **RSS Sources** manages RSS/Atom subscriptions and collection limits.
+
+Browser changes can be exported or written to the gitignored `config/workbench.user.js` for scheduled agents.
 
 ---
 
@@ -297,20 +312,7 @@ If `agent_command` is configured, the generated prompt is handed to that command
 
 ## Push Bot
 
-Edit `config/push.yaml`:
-
-```yaml
-enabled: true
-bot_type: lark
-webhook: https://open.larksuite.com/open-apis/bot/v2/hook/xxx
-```
-
-Before publishing, keep:
-
-```yaml
-enabled: false
-webhook: ""
-```
+Prefer the dashboard's **Push Bots** tab. Store only environment-variable names in project configuration, and keep real values in `config/secrets.env` or the local process environment. `config/push.yaml` remains a compatibility path and should keep `webhook: ""` in public commits.
 
 ---
 

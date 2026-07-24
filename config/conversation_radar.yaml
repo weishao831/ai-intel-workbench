@@ -4,14 +4,19 @@
 # ============================================================
 
 meta:
-  version: 3
-  updated: 2026-07-21
+  version: 5
+  updated: 2026-07-24
   owner_note: >
     KOL 名单用于持续监听人物，不能替代话题发现。每日先从 X、公开搜索、
     Hacker News、Reddit、研究员文章和一手站点发现正在升温的议题，
     再回到人物、文章和原帖补齐可验证证据。
 
 workflow:
+  - step: open-trend-map
+    rule: >
+      先跑全行业、视觉/多模态、AI×Web3、AI×金融四条开放热点泳道。每条泳道的
+      首轮查询不得包含固定 KOL、国内核心厂商或已知型号名，避免搜索结果被名单锚定；
+      从最近 24 小时结果中抽取反复出现的新实体、产品名、事件词和争议词。
   - step: pulse
     rule: >
       先做「过去 24 小时 AI 圈在讨论什么」的开放扫描，抽取突然升温的产品名、
@@ -48,6 +53,47 @@ mandatory_pulse:
     每组每天至少执行一个中英文查询，并把查询、候选数、入选条目或淘汰原因写入
     canonical JSON 的 coverage_report。它们是热点发现入口，不代表每天都必须硬塞一条。
   groups:
+    global_ai_trends:
+      purpose: 不带名单地发现当天 AI 科技行业真正反复出现的新事件
+      queries:
+        - 'AI technology industry breaking launch research developer discussion today'
+        - 'what AI developers are discussing today new model product research'
+        - 'site:news.ycombinator.com AI model launch OR agent latest'
+        - 'site:reddit.com/r/LocalLLaMA new model release developer reaction'
+      watch_for:
+        - 多个独立来源在 24 小时内重复出现的新实体或专有名词
+        - 名单外厂商、研究团队、产品和作者
+        - 官方发布、开发者体验与质疑形成的讨论链
+    visual_ai_models:
+      purpose: 捕捉图像、视频、音频、世界模型、具身与 Physical AI 的新发布
+      queries:
+        - 'new image video audio multimodal AI model launch today'
+        - 'visual intelligence world model physical AI robotics model release recent'
+        - 'AI video generation model native audio action prediction announcement'
+      watch_for:
+        - 图像/视频/音频统一模型与世界模型
+        - 视觉生成向模拟、机器人动作和 computer use 的延伸
+        - Black Forest Labs、Runway、Luma、Kling、Pika 等名单内外发布
+    ai_web3_trends:
+      purpose: 主动发现 AI×Web3 当天正在讨论的产品、协议和争议
+      queries:
+        - 'AI crypto Web3 agents decentralized AI trending discussion today'
+        - 'DeFAI agent payments stablecoin x402 decentralized compute recent'
+        - 'site:x.com AI crypto agent protocol developer reaction'
+      watch_for:
+        - Agent 支付、身份、钱包、稳定币与链上执行
+        - 去中心化算力/推理、数据产权、可验证 AI
+        - 真实产品进展与代币叙事之间的反差
+    ai_finance_trends:
+      purpose: 主动发现 AI×金融当天正在讨论的机构动作、产品和风险
+      queries:
+        - 'AI finance agents banking trading research workflow news today'
+        - 'financial AI agent investment research market infrastructure recent'
+        - 'site:x.com AI finance trading agent developer discussion'
+      watch_for:
+        - 银行、券商、资管、交易所的 Agent 产品和运营动作
+        - AI 投研、交易执行、风控、合规与金融稳定讨论
+        - 从演示走向真实工作流的证据和失败边界
     community_hotspots:
       purpose: 发现静态配置未预见的突发讨论
       queries:
@@ -184,8 +230,10 @@ source_policy:
     用热点专有词和 site:x.com 找到具体 status/article。公开网页搜索不能使用 since:、
     filter: 等 X 站内操作符。定时运行可采用公开索引中可见的
     作者、日期、正文摘录，并标记 provider=public-web-index、verification_level=public_index；
-    Gate CLI 的无引用总结本身仍不得作为观点。若公开索引只返回 trending/profile，
-    进入受限浏览器降级链路。
+    Gate CLI 的无引用总结本身仍不得作为观点。公开索引结果只有在同时包含作者、
+    发布日期、至少 20 字可归属正文摘录和具体 status/article URL 时才计为 X 证据；
+    单独一个 URL 只是发现线索。若公开索引只有 trending/profile、字段不完整、帖子超过
+    7 天，或近 7 天有效帖子少于 6 条，都必须进入受限浏览器降级链路。
 
   x_evidence_rule: >
     profile、with_replies、search、home 页面只用于寻找帖子，不是观点证据，
@@ -205,6 +253,11 @@ freshness_policy:
   background_window_days: 30
   daily_min_fresh_ratio: 0.65
   max_background_ratio: 0.20
+  native_search_window_rule: >
+    第一轮网页检索必须使用搜索工具原生近 7 天过滤；热点恢复轮必须使用原生近 72 小时
+    过滤。只在 query 文本里写 July 2026、recent 或 latest 不算时间过滤。所有 trace run
+    必须登记 window_days。候选池低于 5 条近 72 小时或 65% 近 7 天时，至少执行 6 次
+    recovery 查询，其中至少 2 次为近 72 小时，并写入 freshness_pipeline.recovery_run_ids。
   exception_rule: >
     超过 7 天的来源只能作为 background，并必须填写 recency_role=background、
     why_now 和本周新触发因素。超过 30 天不得进入每日主清单；若确有必要，
@@ -221,6 +274,10 @@ daily_quality_floor:
   no_generic_index_urls: true
   no_silent_repeat_from_previous_7_days: true
   required_coverage_groups:
+    - global_ai_trends
+    - visual_ai_models
+    - ai_web3_trends
+    - ai_finance_trends
     - community_hotspots
     - access_and_quota
     - chinese_frontier_models
@@ -230,6 +287,15 @@ daily_quality_floor:
     - domestic_lab_research
     - dynamic_kol_views
   no_unattributed_social_summary: true
+
+trend_discovery_quality:
+  source_of_truth: config/workbench.js#discovery
+  rules:
+    - 每条启用泳道必须达到配置的最少真实查询次数与可归属候选数
+    - 至少 3 条入选来自趋势发现，而不是固定厂商逐轨或固定 KOL 扫描
+    - 趋势发现入选至少覆盖 2 条泳道
+    - 至少 2 条 KOL 观点来自启用名单之外的作者
+    - X 相关查询必须使用当天新实体反向搜索，不得只轮询固定 handle
 
 domestic_lab_coverage:
   core_daily:

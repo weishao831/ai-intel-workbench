@@ -32,3 +32,12 @@ x_scheduled_min_query_interval_seconds: 10
 x_scheduled_post_load_wait_seconds: 3
 x_scheduled_allow_actions: false
 x_stop_on_challenge: true
+
+# 新鲜度恢复：普通网页搜索使用搜索引擎原生时间过滤，不靠查询文本猜日期。
+web_native_recency_days: 7
+web_recovery_recency_days: 3
+freshness_recovery_enabled: true
+freshness_recovery_min_queries: 6
+x_browser_trigger_min_fresh_posts: 6
+x_scheduled_min_queries_on_fallback: 4
+source_result_require_title_date_excerpt: true

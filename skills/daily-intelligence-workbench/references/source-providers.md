@@ -13,6 +13,17 @@ Use by default.
 - Treat X search as best-effort because it often redirects to login.
 - Cache discovered URLs and avoid repeated requests.
 
+### Tier 0.5: Configured RSS/Atom Provider
+
+Use before broad web search when enabled in the workbench.
+
+- Read the effective configuration from `config/workbench.js` plus local `config/workbench.user.js`.
+- Run `scripts/rss_fetch.py --date YYYY-MM-DD --record` after initializing the daily trace.
+- Save one normalized artifact per feed and record `provider: rss-feed`, the feed's configured query group, and the real lookback window.
+- Continue processing healthy feeds when one feed times out, redirects incorrectly, or returns malformed XML.
+- Treat feed title, date, author, link, and excerpt as candidate-discovery metadata. Open the article or official deep link before inclusion.
+- Do not use an RSS description as a substitute for article-level evidence, independent evaluation, or an X viewpoint.
+
 ### Tier 1: Local Browser Provider
 
 Use only when the user opts in.
@@ -50,14 +61,15 @@ Design implications:
 - Discover X URLs via web search, RSS-like third-party sources, curated KOL handles, or configured provider APIs. For each major topic, search the exact model/product name, article title, coined term, evaluator, and counterargument; the curated KOL list is not a discovery ceiling.
 - Use Gate CLI `news feed search-x` as a candidate-discovery provider, not as self-validating evidence. Require non-empty `cited_tweets`/`items` and reject placeholder or example URLs.
 - Discard a Gate CLI result when `summary`/`content` is non-empty but `cited_tweets` and `items` are empty. A fluent synthesis without tweet-level evidence is not a usable source.
-- A discarded Gate result must trigger a public-web fallback, not end X discovery. Search the emerging topic with `site:x.com` and require a concrete status/article URL plus visible indexed author, date, and attributable post text.
+- A discarded Gate result must trigger a public-web fallback, not end X discovery. Search the emerging topic with `site:x.com` using the search provider's native seven-day recency filter and require a concrete status/article URL plus visible indexed author, date, and at least 20 characters of attributable post text. A bare URL does not count as a verified X post.
 - Read the final concrete status/article URL as a public page whenever possible. Verify visible author, timestamp, post/article title or text, and a stable numeric status/article id.
 - Treat `x.com/<handle>`, `/with_replies`, `/search`, and home pages as discovery surfaces only. They are not viewpoints and must not be stored as digest items or counted toward X coverage.
 - For the KOL views dimension, run X discovery before newsletter/blog fallbacks. A healthy daily digest should normally have a majority of KOL-view items backed by concrete `x.com/.../status/<digits>` or `x.com/i/article/<digits>` evidence, plus explicit originator, independent-evaluation, and counterpoint roles for the day's major topics.
 - In scheduled runs, a public index result may count as X evidence only when it includes a concrete URL, author, date, and text excerpt. Mark it `verification_level=public_index`; never label it browser-verified.
 - If all providers return only aggregate summaries, keep the aggregate in the coverage report as a rejected candidate, not as a digest viewpoint.
 - Keep Chrome login-state access optional and local; it is for explicit interactive spot checks, not unattended collection.
-- When `config/runtime.yaml` enables `scheduled_limited_readonly`, a scheduled run may perform at most six low-frequency X searches through the user's local browser. Read the first viewport only, retain at most eight results, never scroll or perform account actions, and stop on any login wall, CAPTCHA, or challenge.
+- When `config/runtime.yaml` enables `scheduled_limited_readonly`, a scheduled run must perform at least four and at most six low-frequency X searches when Gate has fewer than four cited posts and public search has fewer than six attributable posts from the last seven days. Read the first viewport only, retain at most eight results, never scroll or perform account actions, and stop on any login wall, CAPTCHA, or challenge.
+- Every provider run records `window_days`. If the provisional candidate set misses the 72-hour/seven-day publication floor, perform at least six native-recency recovery queries, including at least two three-day runs, before declaring the day underfilled.
 - Do not describe this as ban-proof or anti-ban. It is a small, read-only, user-owned access pattern with no guarantee from X.
 - Do not use X-only syntax such as `since:` or `filter:` in ordinary web-search queries. Use native recency/domain filters there; reserve X operators for X's own search box.
 - Persist every Gate, public-index, and browser query as a trace artifact. A provider count without a matching `research_trace.json` run is invalid.

@@ -5,8 +5,8 @@
 # ============================================================
 
 meta:
-  version: 6
-  updated: 2026-07-22
+  version: 7
+  updated: 2026-07-24
   date_rule: 搜索时由运行任务注入当天日期和最近 72 小时/7 天窗口，不在配置中写死月份。
 
 # 搜索时优先拼接的英文关键词（research-analyst 用英文搜，结果整理为中文）
@@ -22,9 +22,30 @@ search_terms:
   domestic-product-ops: ["Token Plan", "Qoder", "QoderWork", "pricing", "subscription", "quota", "capacity", "promotion", "API rollout", "套餐", "额度", "促销", "订阅", "容量", "渠道"]
   domestic-research: ["technical report", "model card", "research", "paper", "arxiv", "benchmark", "post-training", "inference", "技术报告", "论文", "模型卡", "后训练", "推理效率"]
   viewpoint-roles: ["originator", "independent evaluation", "tested", "critique", "counterpoint", "rebuttal", "首发", "独立实测", "质疑", "反方"]
+  global-ai-trends: ["breaking AI launch", "developer discussion", "new model today", "research release", "industry debate", "emerging AI product"]
+  visual-ai-models: ["image generation", "video generation", "native audio", "multimodal model", "world model", "visual intelligence", "Physical AI", "action prediction", "robotics"]
+  ai-web3-trends: ["AI crypto agent", "DeFAI", "agent payments", "stablecoin", "x402", "decentralized AI", "verifiable inference", "onchain agent"]
+  ai-finance-trends: ["AI finance agent", "banking AI", "AI investment research", "trading agent", "market infrastructure", "financial stability", "risk controls"]
 
 # 每日必须额外执行的高优先级查询（由 config/research_radar.yaml 解释）
 must_run_queries:
+  global_ai_trends:
+    - 'AI technology industry breaking launch research developer discussion today'
+    - 'what AI developers are discussing today new model product research'
+    - 'site:news.ycombinator.com AI model launch OR agent latest'
+    - 'site:reddit.com/r/LocalLLaMA new model release developer reaction'
+  visual_ai_models:
+    - 'new image video audio multimodal AI model launch today'
+    - 'visual intelligence world model physical AI robotics model release recent'
+    - 'AI video generation model native audio action prediction announcement'
+  ai_web3_trends:
+    - 'AI crypto Web3 agents decentralized AI trending discussion today'
+    - 'DeFAI agent payments stablecoin x402 decentralized compute recent'
+    - 'site:x.com AI crypto agent protocol developer reaction'
+  ai_finance_trends:
+    - 'AI finance agents banking trading research workflow news today'
+    - 'financial AI agent investment research market infrastructure recent'
+    - 'site:x.com AI finance trading agent developer discussion'
   community_hotspots:
     - 'AI community hot topics today model product launch controversy recent'
     - '今天 AI 圈 热点 新模型 产品 争议'
