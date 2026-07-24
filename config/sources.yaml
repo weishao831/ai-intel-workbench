@@ -5,11 +5,21 @@
 # ============================================================
 
 meta:
-  version: 5
-  updated: 2026-07-21
+  version: 7
+  updated: 2026-07-24
   note: 开源后可按需增删；带 official=true 的为一手源，优先级最高。新增 research-radar 配置后，研究员长文、官方研究页、国产模型技术报告必须先扫。
 
 dimensions:
+
+  rss-subscriptions:
+    cn_name: RSS 订阅源
+    check_freq: daily
+    config: config/workbench.js#rss
+    user_config: config/workbench.user.js#rss
+    collector: scripts/rss_fetch.py
+    note: >-
+      trace 初始化后采集所有已启用 RSS/Atom 源，逐源保存 evidence 并登记
+      provider=rss-feed。RSS 摘要只用于候选发现，最终入选仍需打开文章深链核验。
 
   # 维度一：AI 大厂一手信息
   ai-labs:
@@ -28,6 +38,9 @@ dimensions:
       - { name: Meta AI Blog,           url: "https://ai.meta.com/blog",               official: true }
       - { name: xAI News,               url: "https://x.ai/news",                      official: true }
       - { name: Mistral News,           url: "https://mistral.ai/news",                official: true }
+      - { name: Black Forest Labs Blog, url: "https://bfl.ai/blog",                    official: true, note: FLUX 图像/视频/音频、视觉智能、世界模型与 Physical AI 发布 }
+      - { name: Black Forest Labs Models, url: "https://bfl.ai/models",                 official: true, note: FLUX 系列模型页与 Early Access 状态 }
+      - { name: Black Forest Labs Release Notes, url: "https://docs.bfl.ai/release-notes", official: true, note: API、产品与模型上线记录 }
       - { name: Microsoft AI Blog,      url: "https://blogs.microsoft.com/ai",         official: true }
       - { name: Manus Blog,             url: "https://manus.im/blog",                  official: true }
       - { name: DeepSeek,               url: "https://api-docs.deepseek.com/news",     official: true }

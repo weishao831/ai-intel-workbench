@@ -7,6 +7,9 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M18 33c8-18 20-18 28 0' fill='none' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='34' r='6' fill='white'/%3E%3C/svg%3E">
 <script src="data/manifest.js"></script>
 <script src="data/2026/06/29/digest.js"></script>
+<script src="config/kol.js"></script>
+<script src="config/workbench.js"></script>
+<link rel="stylesheet" href="assets/workbench-config.css">
 <style>
   :root{
     --bg:#f5f6f8; --surface:#ffffff; --surface2:#fbfbfd; --raised:#ffffff;
@@ -344,6 +347,7 @@ var P={
   info:'<circle cx="12" cy="12" r="9.5"/><path d="M12 16.5v-5M12 8h.01"/>',
   grid:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
   x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
   back:'<path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>',
   ext:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
   chev:'<path d="M9 18l6-6-6-6"/>',
@@ -362,6 +366,13 @@ var P={
   rocket:'<path d="M5 16c-2 1-2 5-2 5s4 0 5-2c.7-1.4.1-3-1-3-1.1 0-1.7.6-2 0z"/><path d="M9 13l-3-3a14 14 0 0 1 9-9c3 0 5 2 5 5a14 14 0 0 1-9 9z"/><circle cx="14.5" cy="9.5" r="1.5"/>',
   open:'<path d="M9 18h6"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
   book:'<path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'
+  ,rss:'<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>'
+  ,save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
+  ,download:'<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>'
+  ,upload:'<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 21h14"/>'
+  ,plus:'<path d="M12 5v14M5 12h14"/>'
+  ,trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>'
+  ,check:'<path d="M20 6L9 17l-5-5"/>'
 };
 function ico(n,cls){return '<svg class="ic '+(cls||'')+'" viewBox="0 0 24 24">'+(P[n]||'')+'</svg>';}
 
@@ -372,8 +383,9 @@ var I18N={
   zh:{
     doc_title:"AI 每日情报工作台",brand:"AI 每日情报",brand_sub:"DAILY INTELLIGENCE",
     search:"搜索标题 / 摘要 / 标签…",all:"全部",high:"高热",rising:"上升",medium:"关注",
-    sec_overview:"概览",sec_dimensions:"五大维度",sec_mine:"我的",
+    sec_overview:"概览",sec_dimensions:"五大维度",sec_mine:"我的",sec_manage:"管理",
     overview:"今日速览",hot:"近期热点",marks:"我的标记",history:"历史归档",about:"架构 & Loop",about_title:"架构 & 调研 Loop",
+    config:"配置中心",rss_sources:"RSS 订阅源",
     dim_lab:"AI 大厂动态",dim_kol:"KOL 观点",dim_paper:"前沿论文",dim_oss:"开源项目",dim_fin:"AI × 金融",
     foot:"当前数据",data_dir:"本地工作台 · 数据沉淀于",items:"今日情报条目",dims:"覆盖维度",hot_topics:"跨维度热点",high_items:"高热条目",saved:"我的标记",
     mood:"加密市场情绪　",worth:"今日值得注意",cross:"跨维度共振 · 点击查看关联",related:"条关联",
@@ -393,8 +405,9 @@ var I18N={
   en:{
     doc_title:"AI Intel Workbench",brand:"AI Intel Workbench",brand_sub:"DAILY INTELLIGENCE",
     search:"Search title / summary / tags...",all:"All",high:"High",rising:"Rising",medium:"Watch",
-    sec_overview:"Overview",sec_dimensions:"Dimensions",sec_mine:"Mine",
+    sec_overview:"Overview",sec_dimensions:"Dimensions",sec_mine:"Mine",sec_manage:"Manage",
     overview:"Daily Brief",hot:"Recent Signals",marks:"Saved",history:"Archive",about:"Architecture & Loop",about_title:"Architecture & Research Loop",
+    config:"Configuration",rss_sources:"RSS Sources",
     dim_lab:"AI Labs",dim_kol:"KOL Insights",dim_paper:"Frontier Papers",dim_oss:"Open Source",dim_fin:"AI x Finance",
     foot:"Current data",data_dir:"Local workbench · data stored in",items:"Intel items",dims:"Dimensions",hot_topics:"Cross-domain signals",high_items:"High-signal items",saved:"Saved items",
     mood:"Market mood  ",worth:"Signals Worth Watching",cross:"Cross-domain convergence · click to inspect related items",related:"related",
@@ -487,6 +500,9 @@ function navCfg(){
     {sec:T("sec_mine")},
     {v:"marks",ic:"star",t:T("marks"),c:Object.keys(getMarks()).length},
     {v:"history",ic:"cal",t:T("history"),c:(MANIFEST.dates||[]).length},
+    {sec:T("sec_manage")},
+    {v:"config",ic:"gear",t:T("config")},
+    {v:"rss",ic:"rss",t:T("rss_sources"),c:(window.getEnabledRssCount?window.getEnabledRssCount():0)},
     {v:"about",ic:"info",t:T("about")}
   ];
 }
@@ -530,7 +546,7 @@ function render(){
   var d=daily();
   document.getElementById("vDate").textContent=d?d.date_cn:"";
   document.getElementById("footdate").innerHTML=T("foot")+" · <b>"+(d?d.date:"-")+"</b>";
-  var titles={overview:T("overview"),hot:T("hot"),marks:T("marks"),history:T("history"),about:T("about_title")};
+  var titles={overview:T("overview"),hot:T("hot"),marks:T("marks"),history:T("history"),config:T("config"),rss:T("rss_sources"),about:T("about_title")};
   document.getElementById("vTitle").textContent=DIM[state.view]?DIM[state.view].cn:(titles[state.view]||"");
   var sf=["overview","hot","marks","lab","kol","paper","oss","fin"].indexOf(state.view)>=0;
   document.querySelector(".search").style.display=sf?"flex":"none";
@@ -542,6 +558,8 @@ function render(){
   else if(state.view==="hot")c.innerHTML=renderHot(d);
   else if(state.view==="marks")c.innerHTML=renderMarks();
   else if(state.view==="history")c.innerHTML=renderHistory();
+  else if(state.view==="config")c.innerHTML=window.renderWorkbenchConfig?window.renderWorkbenchConfig():"";
+  else if(state.view==="rss")c.innerHTML=window.renderRssSources?window.renderRssSources():"";
   else if(state.view==="about")c.innerHTML=renderAbout();
 }
 
@@ -948,5 +966,6 @@ function row(a,b){return '<tr><td><code>'+a+'</code></td><td>'+b+'</td></tr>';}
 /* ---------- 启动 ---------- */
 (function(){if(!state.date&&MANIFEST.dates&&MANIFEST.dates.length)state.date=MANIFEST.dates[0].date;loadDigest(state.date,render);})();
 </script>
+<script src="assets/workbench-config.js"></script>
 </body>
 </html>

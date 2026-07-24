@@ -4,8 +4,8 @@
 # ============================================================
 
 meta:
-  version: 4
-  updated: 2026-07-21
+  version: 5
+  updated: 2026-07-24
   owner_note: >
     这不是普通信源清单，而是每日调研前必须先扫的高优先级雷达。
     它用于发现没有进入官方新闻稿、但在 X Article、研究员博客、
@@ -14,6 +14,10 @@ meta:
 
 priority_policy:
   hard_priority_order:
+    - open_industry_trend_map
+    - visual_multimodal_model_release
+    - ai_web3_daily_pulse
+    - ai_finance_daily_pulse
     - domestic_lab_model_release
     - domestic_lab_product_ops
     - domestic_lab_research
@@ -79,6 +83,27 @@ domestic_lab_scan_policy:
     每个厂商先分轨扫描，再按当天信号强度选入。模型预告只能写已确认的预览入口和官宣；
     尚未公开的权重不能写成已发布。产品套餐、限额、容量和开发者工具要与模型能力分开记录；
     论文和技术报告优先使用可定位到具体页面的一手来源。
+
+frontier_visual_model_watchlist:
+  rule: >
+    视觉/多模态是独立每日泳道，不从属于国内核心厂商扫描。先用不带厂商名的开放查询
+    发现新发布，再检查以下一手源；名单用于补证，不得限制新厂商发现。
+  sources:
+    - name: Black Forest Labs
+      urls: ["https://bfl.ai/blog", "https://bfl.ai/models", "https://docs.bfl.ai/release-notes"]
+      watch_terms: ["FLUX", "FLUX.3", "image", "video", "audio", "visual intelligence", "world model", "action prediction", "Physical AI"]
+    - name: Runway
+      urls: ["https://runwayml.com/research", "https://runwayml.com/news"]
+      watch_terms: ["video", "world model", "generation", "editing"]
+    - name: Luma
+      urls: ["https://lumalabs.ai/news"]
+      watch_terms: ["Dream Machine", "Ray", "video", "world model"]
+    - name: Kuaishou Kling
+      urls: ["https://klingai.com"]
+      watch_terms: ["Kling", "video", "audio", "multimodal"]
+  selection_rule: >
+    新型号必须同时检查官方深链、可用性阶段、开放权重/接口状态和独立讨论。
+    Early Access、即将开放权重和正式 GA 必须明确区分。
 
 longform_detail_policy:
   applies_to:

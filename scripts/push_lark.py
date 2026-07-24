@@ -6,8 +6,32 @@
 用法：python3 scripts/push_lark.py [可选:webhook 覆盖] [可选:YYYY/MM/DD] [--dry-run] [--allow-target-override]
 依赖：仅标准库（不需要 PyYAML / requests）。
 """
+import argparse
 import re, json, sys, os, urllib.request
 import time, hmac, hashlib, base64
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import load_workbench_config
+
+parser = argparse.ArgumentParser(description="推送已发布的每日 AI 情报到配置中的 Lark 机器人")
+parser.add_argument("values", nargs="*", metavar="WEBHOOK_OR_DATE", help="可选 webhook 覆盖或 YYYY/MM/DD 日期")
+parser.add_argument("--dry-run", action="store_true", help="只检查目标和内容，不发送")
+parser.add_argument("--allow-target-override", action="store_true", help="允许一次性覆盖 primary_only 目标")
+cli_args = parser.parse_args()
+
+override_hook = None
+override_date = None
+for value in cli_args.values:
+    if value.startswith("http"):
+        if override_hook:
+            parser.error("最多只能提供一个 webhook 覆盖")
+        override_hook = value
+    elif re.fullmatch(r"\d{4}/\d{2}/\d{2}", value):
+        if override_date:
+            parser.error("最多只能提供一个日期")
+        override_date = value
+    else:
+        parser.error("无法识别的参数：%s" % value)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def read(p): return open(p, encoding="utf-8").read()
@@ -26,19 +50,39 @@ def load_strict_payload(raw):
 
 # ---------- 读配置（极简 yaml：只取顶层 key） ----------
 cfg = read(os.path.join(ROOT, "config", "push.yaml"))
+workbench_push = load_workbench_config().get("push") or {}
+
 def cfg_get(key, default=""):
     m = re.search(r'(?m)^' + re.escape(key) + r':\s*(.+?)\s*$', cfg)
     if not m: return default
     val = re.split(r'\s+#', m.group(1))[0]   # 去掉行内 # 注释
     return val.strip().strip('"').strip("'")
 
-enabled  = cfg_get("enabled", "true").lower()
+def push_get(key, default=None):
+    value = workbench_push.get(key)
+    return default if value is None else value
+
+enabled  = str(push_get("enabled", cfg_get("enabled", "true"))).lower()
 webhook  = cfg_get("webhook")
 sign_secret = cfg_get("sign_secret") or cfg_get("secret")
 bot_type = cfg_get("bot_type", "lark")
-n_hot    = int(re.sub(r"\D", "", cfg_get("hot_topics", "5")) or 5)
-target_policy = cfg_get("target_policy", "all_enabled").strip().lower()
-primary_target_key = cfg_get("primary_target_key", "DAILY_INTEL_LARK_WEBHOOK").strip()
+n_hot    = int(push_get("hot_topics", re.sub(r"\D", "", cfg_get("hot_topics", "5")) or 5))
+n_featured = int(push_get("featured_items", 3))
+summary_chars = int(push_get("summary_chars", 160))
+target_policy = str(push_get("target_policy", cfg_get("target_policy", "all_enabled"))).strip().lower()
+primary_target_key = str(push_get("primary_target_key", cfg_get("primary_target_key", "DAILY_INTEL_LARK_WEBHOOK"))).strip()
+managed_targets = [
+    row for row in push_get("targets", [])
+    if isinstance(row, dict)
+]
+if managed_targets:
+    configured_types = [
+        str(row.get("type") or "").strip().lower()
+        for row in managed_targets if row.get("enabled", True) and row.get("type")
+    ]
+    if configured_types:
+        bot_type = configured_types[0]
+title_prefix = str(push_get("title_prefix", cfg_get("title_prefix", "AI 每日情报")))
 
 def load_env_file(path):
     if not os.path.exists(path):
@@ -57,10 +101,7 @@ load_env_file(os.path.join(ROOT, "config", "secrets.env"))
 load_env_file(os.path.join(ROOT, "config", "local.env"))
 
 # 命令行覆盖
-args = sys.argv[1:]
-override_hook = next((a for a in args if a.startswith("http")), None)
-override_date = next((a for a in args if re.match(r"\d{4}/\d{2}/\d{2}", a)), None)
-allow_target_override = "--allow-target-override" in args
+allow_target_override = cli_args.allow_target_override
 env_hook = os.environ.get("DAILY_INTEL_LARK_WEBHOOK", "").strip()
 env_secret = os.environ.get("DAILY_INTEL_LARK_SECRET", "").strip()
 
@@ -99,6 +140,23 @@ def add_configured_hooks(hooks, key, value, blocked):
 def configured_hooks():
     hooks = []
     blocked = disabled_hooks()
+    if managed_targets:
+        targets = [row for row in managed_targets if row.get("enabled", True)]
+        if target_policy == "primary_only":
+            targets = [row for row in targets if row.get("role") == "primary"][:1]
+        elif target_policy != "all_enabled":
+            print("[push] target_policy 只支持 primary_only 或 all_enabled")
+            sys.exit(1)
+        for target in targets:
+            key = str(target.get("env_key") or "").strip()
+            if key:
+                add_configured_hooks(hooks, key, os.environ.get(key, ""), blocked)
+        seen, out = set(), []
+        for hook in hooks:
+            if hook not in seen:
+                seen.add(hook)
+                out.append(hook)
+        return out
     if target_policy == "primary_only":
         primary_value = os.environ.get(primary_target_key, "")
         add_configured_hooks(hooks, primary_target_key, primary_value, blocked)
@@ -127,6 +185,15 @@ if env_hooks:
     enabled = "true"
 if env_secret:
     sign_secret = env_secret
+if managed_targets:
+    selected_targets = [row for row in managed_targets if row.get("enabled", True)]
+    if target_policy == "primary_only":
+        selected_targets = [row for row in selected_targets if row.get("role") == "primary"][:1]
+    for target in selected_targets:
+        secret_key = str(target.get("secret_env_key") or "").strip()
+        if secret_key and os.environ.get(secret_key, "").strip():
+            sign_secret = os.environ[secret_key].strip()
+            break
 if override_hook:
     webhook = override_hook
     enabled = "true"
@@ -169,30 +236,63 @@ else:
 # 各维度精选（top3_dimensions 配置的维度出 Top3，其余 per_dimension 条）
 DIM = [("lab", "🏢 AI 大厂"), ("kol", "🗣️ KOL 观点"), ("paper", "📄 前沿论文"),
        ("oss", "🧩 开源项目"), ("fin", "💰 AI×金融")]
-top3_dims = [s.strip() for s in cfg_get("top3_dimensions", "kol,oss,fin").split(",") if s.strip()]
-per_dim = int(re.sub(r"\D", "", cfg_get("per_dimension", "1")) or 1)
+raw_top3 = push_get("top3_dimensions", cfg_get("top3_dimensions", "kol,oss,fin"))
+if isinstance(raw_top3, list):
+    top3_dims = [str(value).strip() for value in raw_top3 if str(value).strip()]
+else:
+    top3_dims = [s.strip() for s in str(raw_top3).split(",") if s.strip()]
+per_dim = int(push_get("per_dimension", re.sub(r"\D", "", cfg_get("per_dimension", "1")) or 1))
 dim_items = {}
+all_items = []
 if payload_data:
     for item in payload_data.get("items", []):
         dim = item.get("dim")
         title = item.get("title")
         if dim and title:
-            dim_items.setdefault(dim, []).append((title, item.get("url", "")))
+            record = {
+                "title": title,
+                "url": item.get("url", ""),
+                "summary": item.get("summary", ""),
+                "why": item.get("why", ""),
+                "heat": item.get("heat", "normal"),
+                "dim": dim,
+            }
+            dim_items.setdefault(dim, []).append(record)
+            all_items.append(record)
 else:
     for line in raw.splitlines():
         if re.search(prop("id") + r'"', line) and re.search(prop("dim") + r'"', line):
             d = re.search(prop("dim") + r'"(\w+)"', line); t = re.search(prop("title") + r'"([^"]*)"', line); u = re.search(prop("url") + r'"([^"]*)"', line)
             if d and t:
-                dim_items.setdefault(d.group(1), []).append((t.group(1), u.group(1) if u else ""))
+                record = {"title": t.group(1), "url": u.group(1) if u else "", "summary": "", "why": "", "heat": "normal", "dim": d.group(1)}
+                dim_items.setdefault(d.group(1), []).append(record)
+                all_items.append(record)
 
 # ---------- 构造 lark 卡片 ----------
-def safe(s): return s.replace('"', "'")
+def safe(s): return str(s or "").replace('"', "'")
 def build_lark_card():
-    el = [{"tag": "div", "text": {"tag": "lark_md", "content": "**🔥 今日值得注意（跨维度共振）**"}}]
+    el = []
+    heat_rank = {"high": 0, "rising": 1, "normal": 2, "medium": 2}
+    featured = sorted(enumerate(all_items), key=lambda pair: (heat_rank.get(pair[1].get("heat"), 2), pair[0]))
+    featured = [item for _, item in featured[:n_featured]]
+    if featured:
+        el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**今日新信号**"}})
+        for item in featured:
+            link = "  [原文](" + item["url"] + ")" if item.get("url") else ""
+            body = safe(item.get("summary"))[:summary_chars]
+            why = safe(item.get("why"))[:summary_chars]
+            lines = ["**· " + safe(item["title"]) + "**" + link]
+            if body:
+                lines.append(body)
+            if why:
+                lines.append("为什么重要：" + why)
+            el.append({"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}})
+        el.append({"tag": "hr"})
+    el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**今日值得注意（跨维度共振）**"}})
     for t, s in hots[:n_hot]:
-        el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**· " + safe(t) + "**\n" + safe(s)[:90]}})
+        el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**· " + safe(t) + "**\n" + safe(s)[:summary_chars]}})
     el.append({"tag": "hr"})
-    el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**📌 各维度精选**（KOL / 开源 / 金融出 Top3）"}})
+    el.append({"tag": "div", "text": {"tag": "lark_md", "content": "**各维度精选**"}})
     for k, cn in DIM:
         items = dim_items.get(k, [])
         n = 3 if k in top3_dims else per_dim
@@ -201,19 +301,24 @@ def build_lark_card():
             continue
         if len(picks) > 1:
             lines = ["**" + cn + " · Top" + str(len(picks)) + "**"]
-            for i, (t, u) in enumerate(picks):
-                link = "  [原文](" + u + ")" if u else ""
-                lines.append(str(i + 1) + ". " + safe(t) + link)
+            for i, item in enumerate(picks):
+                link = "  [原文](" + item["url"] + ")" if item.get("url") else ""
+                lines.append(str(i + 1) + ". " + safe(item["title"]) + link)
+                if item.get("summary"):
+                    lines.append("   " + safe(item["summary"])[:summary_chars])
             el.append({"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}})
         else:
-            t, u = picks[0]
-            link = "  [原文](" + u + ")" if u else ""
-            el.append({"tag": "div", "text": {"tag": "lark_md", "content": cn + "　" + safe(t) + link}})
+            item = picks[0]
+            link = "  [原文](" + item["url"] + ")" if item.get("url") else ""
+            content = cn + "　" + safe(item["title"]) + link
+            if item.get("summary"):
+                content += "\n" + safe(item["summary"])[:summary_chars]
+            el.append({"tag": "div", "text": {"tag": "lark_md", "content": content}})
     el.append({"tag": "hr"})
     el.append({"tag": "note", "elements": [{"tag": "lark_md", "content": "AI 每日情报工作台 · 仅辅助分析、不构成投资建议 · 以原文为准"}]})
     return {"msg_type": "interactive", "card": {
         "config": {"wide_screen_mode": True},
-        "header": {"title": {"tag": "plain_text", "content": "🛰️ " + cfg_get("title_prefix", "AI 每日情报") + " · " + date_cn + " 精华"}, "template": "blue"},
+        "header": {"title": {"tag": "plain_text", "content": title_prefix + " · " + date_cn + " 精华"}, "template": "blue"},
         "elements": el}}
 
 builders = {"lark": build_lark_card, "feishu": build_lark_card}
@@ -230,7 +335,7 @@ if sign_secret and bot_type in ("lark", "feishu"):
 def mask_hook(hook):
     return "<configured-lark-webhook>" if "/hook/" in hook else "<configured-webhook>"
 
-dry_run = "--dry-run" in args
+dry_run = cli_args.dry_run
 print("[push] %s 维度(KOL/开源/金融 Top3) + %d 条热点 → %d 个机器人" % (len(dim_items), min(n_hot, len(hots)), len(webhooks)))
 if dry_run:
     for i, hook in enumerate(webhooks, 1):

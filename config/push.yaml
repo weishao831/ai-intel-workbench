@@ -1,6 +1,7 @@
 # ============================================================
 # 推送配置 push.yaml —— 每日信息整合完成后，把精华推送到机器人
-# 开源后：机器人类型(bot_type)与地址(webhook)均可配置，支持多机器人。
+# 兼容配置。配置中心中的 push.targets 会优先于此文件。
+# 机器人真实地址只放 config/secrets.env 或系统环境变量；仓库只保存环境变量名。
 # ============================================================
 enabled: false
 bot_type: lark
@@ -12,9 +13,6 @@ hot_topics: 5             # 推送几条「今日热点」
 per_dimension: 1          # 普通维度每维度推送几条
 top3_dimensions: kol,oss,fin   # 这些维度推「每日 Top3」（KOL 观点 / 开源项目 / AI×金融）
 title_prefix: "AI 每日情报"
-note: 开源默认不内置 webhook。运行 scripts/init.py 或手动写入本机 config/push.yaml 后再启用推送。
+note: 开源默认不内置 webhook。推荐在配置中心维护机器人元数据，并把真实地址写入本机 config/secrets.env。
 
-# 多机器人示例（开源后启用）：
-# bots:
-#   - { type: lark,  webhook: "https://open.larksuite.com/open-apis/bot/v2/hook/xxx" }
-#   - { type: wecom, webhook: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" }
+# 旧版 webhook/bots 字段仅为兼容保留；不要把真实地址提交到版本库。

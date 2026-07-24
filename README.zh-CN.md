@@ -16,13 +16,13 @@
 
 > 开源默认不内置任何个人 webhook、cookie、token 或账号态。X/Twitter 登录态、API Key、推送机器人都由用户本地自行配置。
 
-> 默认配置已内置 `config/kol.yaml` 作为初始 KOL 池，共 69 人，覆盖 AI 研究者、大厂负责人/研究员、企业 AI 与组织工作、AI 工程与 Agent、开源与模型、评测安全、AI x Crypto 和中文 AI 圈。固定池只是监听起点，每日还会按当天话题反向发现新人物。
+> 默认配置已内置 `config/kol.js` 作为初始 KOL 池，共 69 人，覆盖 AI 研究者、大厂负责人/研究员、企业 AI 与组织工作、AI 工程与 Agent、开源与模型、评测安全、AI x Crypto 和中文 AI 圈。名单可在配置中心人工新增、编辑、停用或删除；固定池只是监听起点，每日还会按当天话题反向发现新人物。
 
 > 2026-07-21 起，`config/research_radar.yaml` 每日必扫 Qwen、DeepSeek、Kimi/Moonshot、Z.ai/GLM、ByteDance Seed/豆包、Tencent Hunyuan、Baidu ERNIE 和 MiniMax，并把模型发布、套餐/限额/产品上线、论文/技术研究分成三条独立扫描轨道。
 
 > 2026-07-20 起新增 `config/conversation_radar.yaml`：先发现最近 72 小时/7 天里正在升温的讨论，再映射到五个展示维度。Gate CLI 只作候选发现，profile/with_replies 不再算观点，具体 X 帖必须经浏览器打开核验。
 
-> 2026-07-21 起扩展为八组强制热点覆盖：在原有社媒热点、额度/订阅、国产模型和 X 观点之外，增加国内大厂模型、产品运营、论文研究和动态 KOL 观点。重点话题至少补齐首发者、独立评估和反方中的必要角色。
+> 2026-07-24 起扩展为十二组强制覆盖：每天先做全局 AI、视觉/多模态、AI x Web3、AI x 金融四条开放热点发现，再检查社媒热点、额度/订阅、国产模型、X 观点、国内大厂三条活动线和动态 KOL。重点话题至少补齐首发者、独立评估和反方中的必要角色。
 
 ---
 
@@ -38,9 +38,11 @@ ai-intel-workbench/
 │   ├── industry.yaml                      # 行业锚定：AI+加密 / AI+金融 / 自定义
 │   ├── sources.yaml                       # 信源配置
 │   ├── keywords.yaml                      # 搜索词与噪音过滤
-│   ├── kol.yaml                           # KOL 名单
+│   ├── kol.js                             # 配置中心可维护的默认 KOL 名单
 │   ├── conversation_radar.yaml            # 近期话题发现、证据与新鲜度门槛
 │   ├── research_radar.yaml                # 研究员长文/官方研究/国产模型/金融量化 Agent 雷达
+│   ├── workbench.js                       # 工作台默认设置与默认 RSS 订阅
+│   ├── workbench.user.js                  # 页面写入的本地设置（gitignore）
 │   ├── push.yaml                          # Lark/飞书等机器人配置
 │   ├── runtime.yaml                       # 本地端口、agent 命令、定时配置
 │   └── secrets.example.env                # 本地密钥示例，不提交真实 secrets
@@ -52,6 +54,7 @@ ai-intel-workbench/
 ├── scripts/
 │   ├── init.py                            # 初始化向导
 │   ├── run_daily.py                       # 每日运行入口
+│   ├── rss_fetch.py                       # RSS/Atom 采集与 trace 登记
 │   ├── validate_digest.py                 # digest 校验
 │   ├── validate_x_candidates.py            # Gate CLI X 候选证据校验
 │   ├── serve.py                           # 本地静态服务
@@ -228,7 +231,7 @@ python3 scripts/run_daily.py --date today --language en
 
 开源版不默认依赖某个用户的 Chrome 登录态。
 
-KOL 观点维度采用 X-first：优先从 `config/kol.yaml` 与当天话题发现的新人物出发，用公开搜索和 Gate CLI `news feed search-x` 找到候选。Gate 无 `cited_tweets/items` 时立即改用 `site:x.com` 公开索引寻找具体原帖，再 fallback 到 newsletter / blog / 媒体聚合。浏览器只在用户明确发起的交互式运行中做少量最终核验，不用于定时批量采集。
+KOL 观点维度采用 X-first：优先从配置中心维护的 `config/kol.js` 与当天话题发现的新人物出发，用公开搜索和 Gate CLI `news feed search-x` 找到候选。每日先运行四条不带固定人名/厂商名的开放趋势搜索，学习当天正在讨论的模型、术语、争议和新作者，再回到维护名单补证。Gate 无 `cited_tweets/items` 时立即改用 `site:x.com` 公开索引寻找具体原帖，再 fallback 到 newsletter / blog / 媒体聚合。浏览器只在用户明确发起的交互式运行中做少量最终核验，不用于定时批量采集。
 
 Gate CLI 只负责候选发现：输出必须先通过 `python3 scripts/validate_x_candidates.py <result.json>`。交互运行用浏览器核对具体原帖；定时运行也可采用公开索引中同时可见作者、日期和正文摘录的具体 `x.com/<handle>/status/<数字 id>` 或 X Article。`profile`、`with_replies`、搜索页和主页只用于导航，不是观点，也不计入 X 来源比例。`validate_digest.py` 会输出热点覆盖、新鲜度、具体 X 比例和过去 7 天重复情况。
 
@@ -279,23 +282,23 @@ python3 scripts/run_daily.py --date today --sample
 
 ### 生成后推送
 
-先配置 `config/push.yaml`，或使用环境变量/命令行临时传入 webhook：
+推荐先在「配置中心 → 推送机器人」维护机器人名称、角色和环境变量名，再把真实 webhook 放进本机 `config/secrets.env` 或系统环境变量：
 
 ```bash
-export DAILY_INTEL_LARK_WEBHOOK="https://open.larksuite.com/open-apis/bot/v2/hook/xxx"
+export DAILY_INTEL_LARK_WEBHOOK="<your-local-webhook>"
 python3 scripts/run_daily.py --date today --push
 
 # 或单独推送某天（使用 push.yaml 选定的主机器人）
 python3 scripts/push_lark.py 2026/06/29
 ```
 
-`primary_only` 下默认拒绝命令行 webhook，防止定时任务绕过白名单。只有明确的手动一次性操作才可使用 `--allow-target-override`。
+`primary_only` 下默认拒绝命令行 webhook，防止定时任务绕过白名单。只有明确的手动一次性操作才可使用 `--allow-target-override`。配置中心和导出的 `workbench.user.js` 只保存环境变量名，不保存或展示真实机器人地址。
 
-也可以在本机 `config/secrets.env` 或环境变量中保留多个机器人，真实 webhook 不进仓库。当 `config/push.yaml` 使用 `target_policy: primary_only` 时，日常任务只会发送 `primary_target_key` 指定的主机器人，编号机器人不会被自动发送：
+可以在本机 `config/secrets.env` 或环境变量中保留多个机器人，真实 webhook 不进仓库。当有效配置使用 `target_policy: primary_only` 时，日常任务只会发送角色为 `primary` 的启用机器人，其他机器人可继续保留但不会自动发送：
 
 ```bash
-DAILY_INTEL_LARK_WEBHOOK_1=https://open.larksuite.com/open-apis/bot/v2/hook/xxx
-DAILY_INTEL_LARK_WEBHOOK_2=https://open.larksuite.com/open-apis/bot/v2/hook/yyy
+DAILY_INTEL_LARK_WEBHOOK_1="<your-primary-webhook>"
+DAILY_INTEL_LARK_WEBHOOK_2="<your-secondary-webhook>"
 
 python3 scripts/push_lark.py 2026/06/29 --dry-run
 ```
@@ -332,6 +335,28 @@ python3 scripts/run_daily.py --date today
 
 ## 配置
 
+### 在工作台中配置
+
+直接打开 `index.html`，侧栏进入「配置中心」可以维护三类真实项目配置：
+
+- 「运行与质量」：运行参数、质量门槛、数据源开关，以及全局 AI、视觉/多模态、AI x Web3、AI x 金融四条主动热点发现线。
+- 「KOL 作者」：搜索、分类筛选、分页、新增、编辑、停用和删除默认关注作者。
+- 「推送机器人」：维护机器人名称、类型、主/备用角色、启用状态和 webhook/签名密钥的环境变量名。
+
+侧栏「RSS 订阅源」可新增、编辑、停用或删除 RSS/Atom 地址。
+
+- 「保存」写入当前浏览器，本页下次打开仍会保留。
+- 「写入每日任务」选择工作台根目录或 `config/` 目录，生成本地 `config/workbench.user.js`，后续 Agent 与校验脚本会自动合并读取。
+- 「导入 / 导出」用于迁移本地配置；`workbench.user.js` 默认不进入版本控制。
+
+RSS 默认包含 OpenAI News、Google DeepMind Blog、Hugging Face Blog、arXiv cs.AI、GitHub AI & ML 和 CoinDesk。每日任务在 trace 初始化后执行：
+
+```bash
+python3 scripts/rss_fetch.py --date today --record
+```
+
+每个订阅源都会形成独立 artifact 和 `rss-feed` trace。RSS 只负责发现候选，最终条目仍须核验文章深链。
+
 ### 行业锚定
 
 编辑 `config/industry.yaml`：
@@ -352,20 +377,13 @@ anchors:
 
 ### 推送机器人
 
-编辑 `config/push.yaml`：
+优先在「配置中心 → 推送机器人」中维护。页面只要求填写环境变量名，例如 `DAILY_INTEL_LARK_WEBHOOK`；真实地址写入本机 `config/secrets.env`：
 
-```yaml
-enabled: true
-bot_type: lark
-webhook: https://open.larksuite.com/open-apis/bot/v2/hook/xxx
+```bash
+DAILY_INTEL_LARK_WEBHOOK=<your-local-webhook>
 ```
 
-开源提交前应保持：
-
-```yaml
-enabled: false
-webhook: ""
-```
+`config/push.yaml` 仅作为旧版兼容配置；开源提交中应保持 `webhook: ""`。
 
 ### agent 命令
 

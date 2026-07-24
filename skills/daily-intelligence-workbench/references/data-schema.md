@@ -20,16 +20,18 @@ The deterministic writer also accepts canonical JSON:
   "date": "2026-06-29",
   "date_cn": "2026年6月29日 · 周一",
   "generated_at": "2026-06-29",
-  "quality_version": 4,
+  "quality_version": 6,
   "language": "zh",
   "refresh_note": "Short generation note",
   "market_mood": "Optional market/context paragraph",
   "coverage_report": {
+    "trace_path": ".daily-intel/runs/2026-06-29/research_trace.json",
     "query_groups": [
       {
         "key": "community_hotspots",
         "status": "completed",
         "queries": ["Actual query issued"],
+        "run_ids": ["web-community-01"],
         "candidate_count": 5,
         "selected_ids": ["lab-1"],
         "rejection_reasons": []
@@ -57,8 +59,8 @@ The deterministic writer also accepts canonical JSON:
       ]
     },
     "viewpoint_pipeline": {
-      "dynamic_candidates": 6,
-      "dynamic_selected_ids": ["kol-1", "kol-2"],
+      "dynamic_candidates": 10,
+      "dynamic_selected_ids": ["kol-1", "kol-2", "kol-3"],
       "static_selected_ids": [],
       "topic_roles": [
         {
@@ -70,6 +72,35 @@ The deterministic writer also accepts canonical JSON:
           }
         }
       ]
+    },
+    "trend_pipeline": {
+      "lanes": [
+        {
+          "key": "global_ai_trends",
+          "query_count": 4,
+          "candidate_count": 8,
+          "domains": ["example.com", "x.com"]
+        },
+        {
+          "key": "visual_ai_models",
+          "query_count": 3,
+          "candidate_count": 4,
+          "domains": ["bfl.ai", "x.com"]
+        },
+        {
+          "key": "ai_web3_trends",
+          "query_count": 3,
+          "candidate_count": 4,
+          "domains": ["example.org", "x.com"]
+        },
+        {
+          "key": "ai_finance_trends",
+          "query_count": 3,
+          "candidate_count": 4,
+          "domains": ["example.net", "x.com"]
+        }
+      ],
+      "trend_selected_ids": ["lab-1", "kol-1", "fin-1"]
     }
   },
   "dimensions": [
@@ -86,6 +117,9 @@ The deterministic writer also accepts canonical JSON:
       "heat": "high",
       "dims": ["lab", "kol"],
       "summary": "Why this matters",
+      "trend_lane": "global_ai_trends | visual_ai_models | ai_web3_trends | ai_finance_trends",
+      "why_now": "What changed in the current discovery window",
+      "debate": "What people disagree about or are testing",
       "related": ["lab-1", "kol-1"]
     }
   ],
@@ -106,11 +140,13 @@ The deterministic writer also accepts canonical JSON:
       "why": "Why it matters",
       "why_now": "Why now",
       "topic_cluster": "organization-ai",
+      "topic_origin": "trend_discovery | watchlist | fixed_radar",
+      "trend_lane": "global_ai_trends | visual_ai_models | ai_web3_trends | ai_finance_trends",
       "recency_role": "fresh_signal | current | background",
       "buzz": "Community discussion",
       "x_src": ["https://x.com/.../status/..."],
       "evidence": {
-        "provider": "browser | public-web-index | official-api | official-site",
+        "provider": "x-browser | public-web-index | official-api | official-site",
         "verification_level": "direct_page | public_index | official_api",
         "excerpt": "Attributable source text used for the summary",
         "verified_url": "https://x.com/author/status/1234567890",
@@ -136,7 +172,7 @@ The deterministic writer also accepts canonical JSON:
 
 ## Required Fields
 
-- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`; new production digests should set `quality_version: 4` and include `coverage_report`
+- Root: `date`, `date_cn`, `generated_at`, `dimensions`, `hot_topics_today`, `items`; new production digests should set `quality_version: 6` and include trace-backed `coverage_report`
 - Dimension: `key`, `cn`, `overview`
 - Hot topic: `title`, `summary`, `related`
 - Item: `id`, `dim`, `title`, `source`, `url`, `date`, `summary`, `detail`
@@ -187,7 +223,33 @@ Keep technical names, source names, product names, tickers, and URLs unchanged u
 - For `quality_version: 4`, `coverage_report.lab_pipeline.core_labs_checked` must contain all eight core domestic labs, and `activity_tracks` must complete `model_release`, `product_ops`, and `research` with actual queries and candidate records.
 - For `quality_version: 4`, every lab item requires `lab_activity_type`. Every KOL item requires `discovery_mode: watchlist | topic_expansion` and `viewpoint_role: originator | independent_evaluation | counterpoint | context`.
 - For `quality_version: 4`, `coverage_report.viewpoint_pipeline` requires at least six dynamic candidates, at least two dynamic selections, at least two topics with originator + independent evaluation, and at least one counterpoint topic.
+- For `quality_version: 5`, `coverage_report.trace_path` must reference the same day's finalized `research_trace.json`. Every query group needs `run_ids`; its queries, candidate count, and X pipeline totals must match trace artifacts.
+- For `quality_version: 5`, the trace must contain at least three actual Gate X queries. If Gate yields fewer than four concrete cited posts, at least four public-index/browser fallback queries are required.
+- For `quality_version: 5`, all eight core domestic labs need separate trace records for `model_release`, `product_ops`, and `research` (24 lab/track pairs). A combined “checked eight labs” sentence is not evidence.
+- For `quality_version: 5`, the digest needs at least 12 items, including at least two lab items, four KOL viewpoints, one paper, two open-source projects, and one AI-finance item. X failure must not erase researched non-X dimensions.
+- For `quality_version: 6`, `coverage_report.query_groups` additionally requires `global_ai_trends`, `visual_ai_models`, `ai_web3_trends`, and `ai_finance_trends`. These open-trend lanes run before fixed KOL and lab sweeps.
+- For `quality_version: 6`, `coverage_report.trend_pipeline.lanes` must report the real query count, attributable candidate count, and source domains for every enabled lane. The default floors are 4/8 for global AI and 3/4 for each specialist lane.
+- For `quality_version: 6`, at least three selected items need `topic_origin: trend_discovery`, at least two distinct trend lanes must be represented, and at least two selected topic-expansion KOLs must come from outside the maintained watchlist.
+- For `quality_version: 6`, every hot topic needs `trend_lane`, a concrete `why_now`, and a real `debate`; generic reusable headings do not satisfy the contract.
+- Trace schema v3 counts only attributable candidates with a deep URL, title, in-window publication date, and an excerpt of at least 20 characters. Provider metadata and monitor URLs never increase the candidate count.
+- Trace schema v2 requires `window_days` on every run. Public-index and browser X posts count only with author, published timestamp, at least 20 characters of attributable excerpt, and a concrete numeric status/article URL; a bare URL remains a discovery candidate only.
+- When Gate has fewer than four cited posts and the public index has fewer than six attributable posts from the last seven days, trace schema v2 requires at least four browser fallback queries unless a recorded login wall or challenge blocks the browser.
+- When the provisional digest misses the 72-hour or seven-day freshness floor, `coverage_report.freshness_pipeline` must set `recovery_triggered: true` and reference at least six trace runs with native windows of seven days or less, including at least two three-day runs.
+- RSS/Atom collection uses `provider: rss-feed`. Each enabled feed has its own artifact/run with feed id, feed URL, real lookback window, normalized article links, titles, authors, publication timestamps, and excerpts. RSS evidence is discovery-only until the selected article deep link is opened and verified.
+- X operators such as `since:` and `filter:` are valid only in X's own search. They are invalid in ordinary public-web queries.
 - Do not use generic research indexes, topic pages, profile pages, or provider-monitoring messages as intelligence items.
+
+## Research Trace
+
+Create and finalize the trace before publishing:
+
+```bash
+python3 scripts/research_trace.py init --date 2026-06-29 --mode scheduled
+python3 scripts/research_trace.py record --date 2026-06-29 --id gate-x-01 --provider gate-search-x --group x_viewpoints --query "AI model evaluation critique" --window-days 7 --artifact .daily-intel/runs/2026-06-29/evidence/gate-x-01.json
+python3 scripts/research_trace.py finalize --date 2026-06-29
+```
+
+Each trace run stores the real query, provider, execution time, native window, raw-result count, attributable candidate count, candidate domains, discovered URLs, and artifact path. Lab checks additionally set `lab` and `track`; RSS checks additionally retain feed identity in their artifact.
 
 ## Writing Files
 

@@ -1,7 +1,7 @@
 {
   "name": "ai-intel-workbench",
-  "version": "0.2.0",
-  "description": "Local daily AI intelligence workbench with domestic-lab model/product/research tracking, dynamic KOL viewpoint discovery, X evidence, freshness gates, a static dashboard, optional push bots, and scheduled runs.",
+  "version": "0.4.0",
+  "description": "Local daily AI intelligence workbench with dashboard-managed KOLs, push targets and RSS, open-trend discovery, auditable research traces, X evidence, freshness gates, a static dashboard, and scheduled runs.",
   "repository": "https://github.com/weishao831/ai-intel-workbench",
   "homepage": "https://github.com/weishao831/ai-intel-workbench",
   "author": {
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "AI Intel Workbench",
     "shortDescription": "Run a local multilingual daily AI intelligence dashboard and digest workflow.",
-    "longDescription": "A local-first daily intelligence workbench for AI practitioners. Discover emerging conversations before fixed categories, scan major Chinese AI labs across model, product-operations, and research tracks, expand KOL coverage by topic and viewpoint role, use Gate CLI for X candidate discovery, verify concrete posts, enforce freshness and cross-day deduplication, and publish structured daily digests to a zero-dependency HTML dashboard with optional push bots and scheduled runs.",
+    "longDescription": "A local-first daily intelligence workbench for AI practitioners. Maintain KOL authors, RSS feeds, and environment-variable-only push targets from the dashboard; discover global AI, visual/multimodal, AI x Web3, and AI x finance trends before fixed watchlists; audit every query through evidence traces; and publish validated daily digests to a zero-dependency HTML dashboard with optional push bots and scheduled runs.",
     "developerName": "Wesber",
     "category": "Productivity",
     "capabilities": [

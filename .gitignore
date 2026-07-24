@@ -5,5 +5,6 @@ __pycache__/
 config/secrets.env
 config/local.env
 config/*.local.yaml
+config/workbench.user.js
 logs/
 tmp/

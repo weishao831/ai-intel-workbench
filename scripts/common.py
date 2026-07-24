@@ -64,8 +64,53 @@ def parse_simple_yaml(path):
     return data
 
 
+def deep_merge(base, extra):
+    """Merge JSON-style mappings; arrays and scalars replace defaults."""
+    if not isinstance(base, dict):
+        base = {}
+    if not isinstance(extra, dict):
+        return base
+    for key, value in extra.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            base[key] = deep_merge(dict(base[key]), value)
+        else:
+            base[key] = value
+    return base
+
+
+def parse_js_config(path):
+    """Read `window.NAME = {...};` configuration without executing JavaScript."""
+    path = Path(path)
+    if not path.exists():
+        return {}
+    raw = read_text(path).strip()
+    match = re.search(r"=\s*(\{[\s\S]*\})\s*;?\s*$", raw)
+    if not match:
+        raise ValueError("配置文件不是有效的 window.* JSON: %s" % path)
+    value = json.loads(match.group(1))
+    if not isinstance(value, dict):
+        raise ValueError("配置根节点必须是对象: %s" % path)
+    return value
+
+
+def load_workbench_config():
+    defaults = parse_js_config(ROOT / "config" / "workbench.js")
+    kol_defaults = parse_js_config(ROOT / "config" / "kol.js")
+    defaults = deep_merge(defaults, kol_defaults)
+    user = parse_js_config(ROOT / "config" / "workbench.user.js")
+    return deep_merge(defaults, user)
+
+
+def enabled_kol_authors():
+    return [
+        row for row in (load_workbench_config().get("kol") or {}).get("authors") or []
+        if isinstance(row, dict) and row.get("enabled", True)
+    ]
+
+
 def runtime_config():
     cfg = parse_simple_yaml(ROOT / "config" / "runtime.yaml")
+    cfg = deep_merge(cfg, load_workbench_config().get("runtime") or {})
     env_cmd = os.environ.get("DAILY_INTEL_AGENT_CMD", "").strip()
     if env_cmd:
         cfg["agent_command"] = env_cmd

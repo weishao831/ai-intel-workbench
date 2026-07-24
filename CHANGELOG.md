@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+## 0.4.0 - 2026-07-24
+
+Full release notes: [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md)
+
+- Add project-backed configuration tabs for maintaining KOL authors and Lark/Feishu push targets, including search, filters, pagination, CRUD, local handoff, and environment-variable-only secret resolution.
+- Add four mandatory open-trend lanes for global AI, visual/multimodal models, AI x Web3, and AI x finance before fixed watchlist sweeps; add Black Forest Labs, Runway, Luma, and Kling as an independent frontier visual-model radar.
+- Add `quality_version: 6` and trace schema v3 checks for attributable trend candidates, source diversity, off-watchlist KOL discovery, trend-selected items, and concrete `why_now` / debate fields.
+- Enrich bot cards with featured new signals, explanations, and fuller dimension summaries while preserving fail-closed `primary_only` delivery.
+- Add dashboard configuration and RSS source management with browser persistence, import/export, and a local `workbench.user.js` handoff to scheduled agents.
+- Add six verified default RSS/Atom subscriptions and a failure-isolated `rss_fetch.py` collector that records one `rss-feed` evidence artifact per source.
+- Make runtime and quality validation read the effective dashboard configuration, and make the weekday automation collect RSS before web/X research.
+- Require attributable, dated X evidence in trace schema v2; bare status URLs no longer count as verified public-index or browser posts.
+- Force bounded browser fallback when Gate and public search do not produce enough attributable posts from the last seven days.
+- Add native-recency query windows and a six-query freshness recovery loop before a scheduled run may stop for stale candidates.
+- Make the Lark push CLI reject unknown arguments and handle `--help` without entering the delivery path.
+- Make scheduled research resumable across context compaction and forbid finalizing from an incomplete X-only checkpoint.
+
+## 0.3.0 - 2026-07-22
+
+Full release notes: [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md)
+
+- Added `research_trace.json` and `scripts/research_trace.py` so every query group, provider count, candidate total, and domestic-lab track must be backed by a raw or normalized evidence artifact.
+- Added `quality_version: 5` validation that rejects untraceable `completed` claims, invented candidate counts, missing eight-lab × three-track checks, and empty digests caused by an X-only failure.
+- Changed the X fallback order to Gate candidate discovery → public index → locally configured limited read-only browser search. Scheduled browser use is capped at six first-viewport queries with no scrolling or account actions and stops on any challenge.
+- Removed X-only `since:`/`filter:` operators from ordinary web-search templates and reserved them for X's own search surface.
+- Required non-X dimensions to remain populated when KOL evidence is insufficient, preserving useful lab, paper, open-source, and finance research for diagnosis.
+- Scoped combined evidence artifacts to their exact query so one result set cannot be counted by multiple trace runs.
+
 ## 0.2.0 - 2026-07-21
 
 Full release notes: [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md)
